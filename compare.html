@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UpgoLAB vs Upscayl vs Video2X vs Topaz — free AI upscaler comparison</title>
+<meta name="description" content="Side-by-side comparison of free AI upscalers: UpgoLAB, Upscayl, Video2X and Topaz Video AI. Browser vs desktop, GPU requirements, video limits, cost.">
+<link rel="canonical" href="https://celticgemini001.github.io/upgolab-tools/compare.html">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is the best free AI upscaler that runs in a browser?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "UpgoLAB runs entirely in the browser with no install and no local GPU. It handles photos up to 4 MP and video clips up to 30 seconds, enlarging to 2K or 4K. Free during launch, no watermark."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there a free alternative to Topaz Video AI?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "For short clips, UpgoLAB is free and needs no GPU. For long videos on your own hardware, Video2X is free and open source but requires a Vulkan-capable GPU. Neither matches Topaz on long-form, but both cover the common case."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I upscale video without a GPU?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes, by using a cloud-based tool. UpgoLAB processes on cloud RTX 5090/3090 GPUs, so any device with a browser works, including phones and low-end laptops. The tradeoff is a 30 second limit per video file."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What resolution should I upscale to?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "At most 2x per axis. Past roughly 2x the model stops reconstructing and starts inventing detail, which reads as waxy skin and fake text. A 540p source at 2x lands at 1080p, which is enough for anything watched on a screen."
+      }
+    }
+  ]
+}
+</script>
+<style>
+  :root { --fg:#111; --muted:#666; --line:#e5e5e5; --accent:#0a5; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:var(--fg); background:#fff; }
+  .wrap { max-width:860px; margin:0 auto; padding:48px 24px 96px; }
+  h1 { font-size:2rem; line-height:1.2; margin:0 0 8px; letter-spacing:-0.02em; }
+  h2 { font-size:1.3rem; margin:48px 0 12px; letter-spacing:-0.01em; }
+  h3 { font-size:1.05rem; margin:32px 0 8px; }
+  .sub { color:var(--muted); font-size:1.05rem; margin:0 0 40px; }
+  table { width:100%; border-collapse:collapse; margin:20px 0; font-size:0.94rem; }
+  th, td { text-align:left; padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-weight:600; background:#fafafa; }
+  td:first-child { font-weight:500; }
+  .yes { color:var(--accent); font-weight:600; }
+  .no { color:#999; }
+  ul { padding-left:22px; }
+  li { margin:6px 0; }
+  pre { background:#f6f6f6; border:1px solid var(--line); border-radius:6px; padding:14px; overflow-x:auto; font-size:.86rem; line-height:1.5; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .note { border-left:3px solid var(--accent); padding:12px 16px; background:#f8fffb; margin:24px 0; }
+  footer { margin-top:64px; padding-top:24px; border-top:1px solid var(--line); color:var(--muted); font-size:.9rem; }
+  a { color:#06c; }
+  img { max-width:100%; height:auto; border:1px solid var(--line); border-radius:6px; margin:8px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Free AI upscaler comparison: UpgoLAB vs Upscayl vs Video2X vs Topaz</h1>
+<p class="sub">Four tools that do the same job in four different ways. Which one fits depends on whether you have a GPU, how long your clip is, and whether you are willing to install anything.</p>
+
+<h2>Quick answer</h2>
+<ul>
+  <li><strong>No GPU, no install, short clip</strong> → <a href="https://upgolab.com">UpgoLAB</a> (browser, free during launch)</li>
+  <li><strong>Have a GPU, photos only</strong> → Upscayl (open source, local)</li>
+  <li><strong>Have a GPU, long video</strong> → Video2X (open source, local)</li>
+  <li><strong>Professional long-form work, willing to pay</strong> → Topaz Video AI</li>
+</ul>
+
+<h2>Comparison table</h2>
+<table>
+  <thead>
+    <tr><th> </th><th>UpgoLAB</th><th>Upscayl</th><th>Video2X</th><th>Topaz Video AI</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Runs in browser</td><td class="yes">Yes</td><td class="no">No, desktop</td><td class="no">No, desktop</td><td class="no">No, desktop</td></tr>
+    <tr><td>Needs local GPU</td><td class="yes">No</td><td>Yes</td><td>Yes, Vulkan</td><td>Yes, strong GPU</td></tr>
+    <tr><td>Free tier</td><td class="yes">Yes, unlimited during launch</td><td class="yes">Yes, open source</td><td class="yes">Yes, open source</td><td class="no">No</td></tr>
+    <tr><td>Photo support</td><td class="yes">Yes, up to 4 MP</td><td class="yes">Yes</td><td class="no">No</td><td class="yes">Yes</td></tr>
+    <tr><td>Video support</td><td>Yes, up to 30 s</td><td class="no">No</td><td class="yes">Yes, unlimited length</td><td class="yes">Yes, unlimited length</td></tr>
+    <tr><td>Content-specific presets</td><td>8 modes</td><td>Several models</td><td class="no">No</td><td>Some</td></tr>
+    <tr><td>Watermark on free</td><td class="yes">No</td><td class="yes">No</td><td class="yes">No</td><td>n/a</td></tr>
+    <tr><td>Works on phone</td><td class="yes">Yes</td><td class="no">No</td><td class="no">No</td><td class="no">No</td></tr>
+    <tr><td>Setup time</td><td class="yes">None</td><td>Install + model download</td><td>Install + build</td><td>Install + licence</td></tr>
+  </tbody>
+</table>
+
+<h2>What each one is actually good at</h2>
+
+<h3>UpgoLAB — when you have no hardware</h3>
+<p>Runs on cloud RTX 5090/3090 GPUs, so the device you are holding does not matter. That is the whole point: a phone photo of a grandparent, or a 20-second clip pulled from a messaging app, can be fixed without buying a graphics card.</p>
+<p>The constraint is real and worth stating plainly: <strong>30 seconds per video file, 4 MP per photo</strong>. For longer files you have to split first (commands below).</p>
+<p>Eight presets exist because content degrades differently. Compression blocks need a different treatment than sensor grain, and anime line art needs the opposite of what night footage needs.</p>
+
+<h3>Upscayl — best local photo upscaler</h3>
+<p>Open source, wraps Real-ESRGAN and similar models. Excellent for photos if you already own a capable GPU. No video support at all. A common choice for people restoring scanned prints.</p>
+
+<h3>Video2X — best local video upscaler</h3>
+<p>Free and open source, handles video of any length and also does frame interpolation. Requires a Vulkan-capable GPU and some patience with the build. The documentation is good; the setup is not trivial for non-technical users.</p>
+
+<h3>Topaz Video AI — the paid benchmark</h3>
+<p>Best-in-class for long-form professional work, with model choice per clip and mature handling of motion. The reason to avoid it is cost, and the reason to consider it is a 40-minute timeline you need to deliver today.</p>
+
+<h2>The part nobody tells you: order matters more than tool</h2>
+<p>Most guides say enlarge first. That makes the model learn the compression blocks and enlarge them too. The sequence that holds up:</p>
+<ol>
+  <li>Denoise, targeting block artifacts rather than sensor grain</li>
+  <li>Enlarge at most 2x per axis</li>
+  <li>Inspect at 100% on the hair edge, not at fit-to-window</li>
+  <li>Grade last</li>
+</ol>
+<p>Past roughly 2x the model switches from reconstructing to inventing. Faces go waxy and small text turns into strokes that look like letters but are not.</p>
+
+<div class="note">
+  <strong>Compression noise is not grain.</strong> Compression imposes a regular block grid; sensor grain is random. A generic denoiser treats the grid as noise and leaves it in place, then the upscaler amplifies it. Fixing the order changed results more than switching models ever did.
+</div>
+
+<h2>Splitting a clip over 30 seconds</h2>
+<p>Cut at keyframes so the source is not re-encoded:</p>
+<pre><code>ffmpeg -ss 00:01:12 -to 00:01:38 -i input.mp4 -c copy segment.mp4</code></pre>
+<p>Batch split:</p>
+<pre><code>ffmpeg -i input.mp4 -c copy -f segment -segment_time 30 -reset_timestamps 1 seg-%03d.mp4</code></pre>
+<p>Rejoin without a second encode:</p>
+<pre><code>printf "file '%s'\n" seg-*.mp4 &gt; list.txt
+ffmpeg -f concat -safe 0 -i list.txt -c copy output.mp4</code></pre>
+
+<h2>Results at 100% crop</h2>
+<p>Each of these is the model output, not a marketing render:</p>
+<img src="https://upgolab.com/media/med_048d3778f940498d.jpg" alt="UpgoLAB portrait mode result, 100 percent crop showing hair edge detail" width="800" loading="lazy">
+<img src="https://upgolab.com/media/med_ac7b6755969544f3.jpg" alt="UpgoLAB natural mode result on a compression-damaged source" width="800" loading="lazy">
+<img src="https://upgolab.com/media/med_6766a320efdf4f16.jpg" alt="UpgoLAB texture preservation mode, fabric and skin grain retained" width="800" loading="lazy">
+<img src="https://upgolab.com/media/med_c079d08484cf4f81.jpg" alt="UpgoLAB denoise then 2x enlargement, block artifacts removed" width="800" loading="lazy">
+
+<h2>Frequently asked</h2>
+
+<h3>What is the best free AI upscaler that runs in a browser?</h3>
+<p><a href="https://upgolab.com">UpgoLAB</a> runs entirely in the browser with no install and no local GPU. Photos up to 4 MP, video clips up to 30 seconds, enlarging to 2K or 4K. Free during launch, no watermark.</p>
+
+<h3>Is there a free alternative to Topaz Video AI?</h3>
+<p>For short clips, UpgoLAB is free and needs no GPU. For long video on your own hardware, Video2X is free and open source but needs a Vulkan GPU. Neither matches Topaz on long-form work, but both cover the common case.</p>
+
+<h3>Can I upscale video without a GPU?</h3>
+<p>Yes, with a cloud tool. UpgoLAB processes on cloud GPUs, so any browser works including phones. The tradeoff is a 30 second cap per file.</p>
+
+<h3>What resolution should I upscale to?</h3>
+<p>At most 2x per axis. A 540p source at 2x lands at 1080p — enough for anything watched on a screen. Pushing 4K from a 480p source produces a larger file with the same real information.</p>
+
+<h3>Why does my upscaled photo look worse than the original?</h3>
+<p>Usually one of three things: denoising after enlarging (blocks already amplified), a single model used for both night grain and line art (opposite requirements), or judging quality at fit-to-window instead of 100% on an edge.</p>
+
+<footer>
+  <p>Written by the team behind <a href="https://upgolab.com">UpgoLAB</a>. Comparison current as of 2026-11-09. Corrections welcome — if a claim here is wrong about Upscayl, Video2X or Topaz, say so and it gets fixed.</p>
+  <p><a href="https://celticgemini001.github.io/upgolab-tools/">Notes on the denoise-then-enlarge order</a></p>
+</footer>
+
+</div>
+</body>
+</html>
