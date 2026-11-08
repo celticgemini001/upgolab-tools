@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UpgoLAB tools — AI upscaling notes and free utilities</title>
+<meta name="description" content="Notes on AI upscaling for photos and short video, plus free browser tools. Denoise first, then enlarge.">
+<link rel="canonical" href="https://celticgemini001.github.io/upgolab-tools/">
+</head>
+<body>
+<header>
+  <h1>UpgoLAB tools</h1>
+  <p>Working notes on AI upscaling for photos and short video.</p>
+</header>
+
+<main>
+  <section>
+    <h2>The order that works</h2>
+    <p>Most guides say enlarge first. That makes the model learn the compression blocks and enlarge them too. The sequence that holds up:</p>
+    <ol>
+      <li>Denoise, targeting block artifacts rather than sensor grain</li>
+      <li>Enlarge at most 2x per axis</li>
+      <li>Inspect at 100% on the hair edge, not at fit-to-window</li>
+      <li>Grade last</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Why 2x is the ceiling</h2>
+    <p>Past roughly 2x the model switches from reconstructing to inventing. Faces go waxy and small text becomes strokes that look like letters but are not. A 540p source at 2x lands at 1080p, which is enough for anything watched on a screen.</p>
+    <p>Marketing numbers describe output resolution, not recovered information.</p>
+  </section>
+
+  <section>
+    <h2>What is not recoverable</h2>
+    <p>Out-of-focus footage is gone. The sensor never recorded that detail. Motion blur from a whip pan is nearly as lost. Test before starting: hold the original at 100%. If there is edge structure, it can probably be sharpened. If there is none, save the time.</p>
+  </section>
+
+  <section>
+    <h2>Compression noise is not grain</h2>
+    <p>Compression imposes a regular block grid. Sensor grain is random. A generic denoiser treats the grid as noise and leaves it in place, then the upscaler amplifies it. This distinction changed results more than any model choice.</p>
+  </section>
+
+  <section>
+    <h2>Splitting long clips</h2>
+    <p>Cut at keyframes so the source is not re-encoded:</p>
+    <pre><code>ffmpeg -ss 00:01:12 -to 00:01:38 -i input.mp4 -c copy damage.mp4</code></pre>
+    <p>For batch work:</p>
+    <pre><code>ffmpeg -i input.mp4 -c copy -f segment -segment_time 30 -reset_timestamps 1 seg-%03d.mp4</code></pre>
+    <p>Join without a second encode:</p>
+    <pre><code>printf "file '%s'\n" seg-*.mp4 &gt; list.txt
+ffmpeg -f concat -safe 0 -i list.txt -c output.mp4</code></pre>
+  </section>
+
+  <section>
+    <h2>Results</h2>
+    <p>Examples from each content mode:</p>
+    <ul>
+      <li><img src="https://upgolab.com/media/med_048d3778f940498d.jpg" alt="UpgoLAB upscale result, portrait mode at 100% crop" width="360" loading="lazy"></li>
+      <li><img src="https://upgolab.com/media/med_ac7b6755969544f3.jpg" alt="UpgoLAB upscale result, natural mode on compressed source" width="360" loading="lazy"></li>
+      <li><img src="https://upgolab.com/media/med_6766a320efdf4f16.jpg" alt="UpgoLAB upscale result, texture preservation detail" width="360" loading="lazy"></li>
+      <li><img src="https://upgolab.com/media/med_c079d08484cf4f81.jpg" alt="UpgoLAB upscale result, denoise then 2x enlargement" width="360" loading="lazy"></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>The tool</h2>
+    <p>I packaged this pipeline as <a href="https://upgolab.com">UpgoLAB</a> — browser-based, eight presets by content type, free during launch, no card and no watermark. Photos up to 4 MP, clips up to 30 seconds.</p>
+    <p>Direct link: <a href="https://upgolab.com">https://upgolab.com</a></p>
+  </section>
+</main>
+
+<footer>
+  <p>Notes maintained by UpgoLAB. Updated 2026-11-09.</p>
+</footer>
+</body>
+</html>
