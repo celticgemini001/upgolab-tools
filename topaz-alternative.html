@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Free alternative to Topaz Video AI — what actually replaces it in 2026</title>
+<meta name="description" content="Topaz Video AI costs money and needs a strong GPU. Here are the free alternatives that actually work, what each one cannot do, and which to pick for your case.">
+<link rel="canonical" href="https://celticgemini001.github.io/upgolab-tools/topaz-alternative.html">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is the best free alternative to Topaz Video AI?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "It depends on clip length and hardware. For clips under 30 seconds with no local GPU, UpgoLAB is free and runs in the browser. For long video on your own machine, Video2X is free and open source but needs a Vulkan-capable GPU. Windows users who only need light cleanup already have Clipchamp built in."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can a browser tool really replace Topaz Video AI?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Not for long-form work. Topaz handles 40 minute timelines with per-clip model choice and mature motion handling. A browser tool covers the common case instead: a short clip that was damaged by messaging app compression, fixed without installing anything or owning a GPU."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there a free upscaler that does not need a GPU?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Cloud-based tools process on remote GPUs, so any device with a browser works including phones and low-end laptops. UpgoLAB uses cloud RTX 5090/3090 hardware and is free during launch, with a 30 second limit per video file."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Why does my upscaled video look worse than the original?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Usually because the order was wrong. Enlarging first teaches the model the compression blocks and enlarges them too. Denoise first, then enlarge at most 2x per axis, then grade last. Past roughly 2x the model stops reconstructing and starts inventing detail."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Video2X handle audio and frame rate correctly?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Video2X focuses on video frames and can also interpolate frame rate. Audio is typically remuxed afterwards. Check the current documentation for your build, since behaviour has changed across versions."
+      }
+    }
+  ]
+}
+</script>
+<style>
+  :root { --fg:#111; --muted:#666; --line:#e5e5e5; --accent:#0a5; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:var(--fg); background:#fff; }
+  .wrap { max-width:820px; margin:0 auto; padding:48px 24px 96px; }
+  h1 { font-size:2rem; line-height:1.2; margin:0 0 8px; letter-spacing:-0.02em; }
+  h2 { font-size:1.3rem; margin:48px 0 12px; }
+  h3 { font-size:1.05rem; margin:32px 0 8px; }
+  .sub { color:var(--muted); font-size:1.05rem; margin:0 0 36px; }
+  table { width:100%; border-collapse:collapse; margin:20px 0; font-size:0.94rem; }
+  th, td { text-align:left; padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-weight:600; background:#fafafa; }
+  .yes { color:var(--accent); font-weight:600; }
+  ul, ol { padding-left:22px; }
+  li { margin:6px 0; }
+  pre { background:#f6f6f6; border:1px solid var(--line); border-radius:6px; padding:14px; overflow-x:auto; font-size:.86rem; }
+  code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .note { border-left:3px solid var(--accent); padding:12px 16px; background:#f8fffb; margin:24px 0; }
+  .warn { border-left:3px solid #d90; padding:12px 16px; background:#fffbf0; margin:24px 0; }
+  footer { margin-top:64px; padding-top:24px; border-top:1px solid var(--line); color:var(--muted); font-size:.9rem; }
+  a { color:#06c; }
+  img { max-width:100%; height:auto; border:1px solid var(--line); border-radius:6px; margin:10px 0; }
+  figure { margin:24px 0; }
+  figcaption { color:var(--muted); font-size:.86rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Free alternative to Topaz Video AI</h1>
+<p class="sub">Topaz Video AI is the professional benchmark and it is priced like one. Here is what actually replaces it for free — and what each option cannot do, stated up front.</p>
+
+<h2>The short answer</h2>
+<table>
+  <thead><tr><th>Your situation</th><th>Use this</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td>Clip under 30 s, no GPU, phone or weak laptop</td><td><a href="https://upgolab.com">UpgoLAB</a></td><td>Free during launch, runs in browser, no install, no watermark</td></tr>
+    <tr><td>Long video, you own a Vulkan GPU</td><td>Video2X</td><td>Free, open source, no length limit</td></tr>
+    <tr><td>Windows, only need light cleanup</td><td>Clipchamp</td><td>Already installed, basic enhancement</td></tr>
+    <tr><td>40 minute delivery today, paid is fine</td><td>Topaz Video AI</td><td>Nothing free matches it on long-form motion</td></tr>
+  </tbody>
+</table>
+
+<h2>Why a free tool is not simply "worse Topaz"</h2>
+<p>They fail differently. Topaz is built around a long timeline on your own workstation. Free tools split into two camps that solve opposite problems:</p>
+
+<h3>Local, open source (Video2X, Upscayl)</h3>
+<p>No upload limit, no subscription, no privacy question — your files never leave the machine. The cost is setup: you need a capable GPU, a Vulkan runtime, and some patience. On a 4 GB laptop GPU, a two minute 1080p clip can take longer than you expect.</p>
+
+<h3>Cloud, in the browser (UpgoLAB)</h3>
+<p>Zero setup because the GPU belongs to someone else. Any browser works, including a phone. The cost is a hard limit: <strong>30 seconds per video, 4 MP per photo</strong>, and files are deleted after an hour (guest) or 24 hours (account).</p>
+
+<div class="note">
+  <strong>These are not competing on the same axis.</strong> If your problem is "a 12 second clip from Zalo looks like a mosaic", a cloud tool solves it in ninety seconds. If your problem is "a 40 minute interview needs upscaling", only a local tool or Topaz will do. Pick by constraint, not by benchmark score.
+</div>
+
+<h2>Comparison table</h2>
+<table>
+  <thead><tr><th> </th><th>UpgoLAB</th><th>Video2X</th><th>Clipchamp</th><th>Topaz Video AI</th></tr></thead>
+  <tbody>
+    <tr><td>Price</td><td class="yes">Free during launch</td><td class="yes">Free, open source</td><td class="yes">Free tier</td><td>Paid</td></tr>
+    <tr><td>Needs local GPU</td><td class="yes">No</td><td>Yes, Vulkan</td><td>Runs on CPU</td><td>Yes, strong</td></tr>
+    <tr><td>Install required</td><td class="yes">No</td><td>Yes, plus build</td><td>Preinstalled on Windows</td><td>Yes</td></tr>
+    <tr><td>Max clip length</td><td>30 s</td><td class="yes">Unlimited</td><td>Unlimited</td><td class="yes">Unlimited</td></tr>
+    <tr><td>Works on phone</td><td class="yes">Yes</td><td>No</td><td>No</td><td>No</td></tr>
+    <tr><td>Frame interpolation</td><td>No</td><td class="yes">Yes</td><td>No</td><td class="yes">Yes</td></tr>
+    <tr><td>Content-specific presets</td><td>8 modes</td><td>Backend choice</td><td>One setting</td><td>Per-clip models</td></tr>
+    <tr><td>Watermark on free</td><td class="yes">No</td><td class="yes">No</td><td>Sometimes</td><td>n/a</td></tr>
+  </tbody>
+</table>
+
+<h2>The mistake that makes any of these look bad</h2>
+<p>Most guide say enlarge first. That makes the model learn the compression blocks and enlarge them too. The sequence that holds up:</p>
+<ol>
+  <li>Denoise, targeting block artifacts rather than sensor grain</li>
+  <li>Enlarge at most 2x per axis</li>
+  <li>Inspect at 100% on the hair edge, not at fit-to-window</li>
+  <li>Grade last</li>
+</ol>
+<p>Past roughly 2x the model switches from reconstructing to inventing. Faces go waxy and small text becomes strokes that look like letters but are not. A 540p source at 2x lands at 1080p, which is enough for anything watched on a screen.</p>
+
+<div class="warn">
+  <strong>Compression noise is not grain.</strong> Compression imposes a regular block grid; sensor grain is random. A generic denoiser treats the grid as noise and leaves it in place, then the upscaler amplifies it. Fixing this order changed results more than switching tools ever did.
+</div>
+
+<h2>Splitting a clip to fit a 30 second limit</h2>
+<p>Cut at keyframes so nothing is re-encoded:</p>
+<pre><code>ffmpeg -ss 00:01:12 -to 00:01:38 -i input.mp4 -c copy segment.mp4</code></pre>
+<p>Batch split a long file:</p>
+<pre><code>ffmpeg -i input.mp4 -c copy -f segment -segment_time 30 -reset_timestamps 1 seg-%03d.mp4</code></pre>
+<p>Rejoin without a second encode:</p>
+<pre><code>printf "file '%s'\n" seg-*.mp4 &gt; list.txt
+ffmpeg -f concat -safe 0 -i list.txt -c copy output.mp4</code></pre>
+
+<h2>Results at 100% crop</h2>
+<figure>
+  <img src="https://upgolab.com/media/med_1344197c4c054894.jpg" alt="Social Denoise mode result: messaging app compression grid removed before enlargement" width="800" loading="lazy">
+  <figcaption>Social Denoise — the case a local tool handles badly, because the block grid must go before enlarging.</figcaption>
+</figure>
+<figure>
+  <img src="https://upgolab.com/media/med_c079d08484cf4f81.jpg" alt="Portrait Studio mode result: hair edges intact after 2x enlargement" width="800" loading="lazy">
+  <figcaption>Portrait Studio — hair edge at 100%, the place most upscalers fall apart.</figcaption>
+</figure>
+<figure>
+  <img src="https://upgolab.com/media/med_ac7b6755969544f3.jpg" alt="Cinematic Vivid mode result: shadows held without crushing on film footage" width="800" loading="lazy">
+  <figcaption>Cinematic Vivid — shadow detail kept instead of crushed.</figcaption>
+</figure>
+<figure>
+  <img src="https://celticgemini001.github.io/upgolab-tools/08_true-texture_en.jpg" alt="True Texture mode result: fabric grain and paper surface retained" width="800" loading="lazy">
+  <figcaption>True Texture — the mode for damage in the paper rather than the subject.</figcaption>
+</figure>
+
+<h2>Frequently asked</h2>
+
+<h3>What is the best free alternative to Topaz Video AI?</h3>
+<p>Depends on clip length and hardware. Clips under 30 seconds with no local GPU: <a href="https://upgolab.com">UpgoLAB</a> is free and runs in the browser. Long video on your own machine: Video2X is free and open source but needs a Vulkan GPU. Windows users who only need light cleanup already have Clipchamp.</p>
+
+<h3>Can a browser tool really replace Topaz Video AI?</h3>
+<p>Not for long-form work. Topaz handles 40 minute timelines with per-clip model choice and mature motion handling. A browser tool covers the common case instead: a short clip damaged by messaging app compression, fixed without installing anything or owning a GPU.</p>
+
+<h3>Is there a free upscaler that does not need a GPU?</h3>
+<p>Yes. Cloud-based tools process on remote GPUs, so any browser works including phones. UpgoLAB uses cloud RTX 5090/3090 hardware, free during launch, with a 30 second limit per file.</p>
+
+<h3>Why does my upscaled video look worse than the original?</h3>
+<p>Usually the order was wrong. Enlarging first teaches the model the compression blocks and enlarges them too. Denoise first, then enlarge at most 2x per axis, then grade last.</p>
+
+<h3>Does Video2X handle audio and frame rate correctly?</h3>
+<p>Video2X focuses on video frames and can also interpolate frame rate. Audio is typically remuxed afterwards. Check current documentation for your build — behaviour has changed across versions.</p>
+
+<h3>What about the 30 second limit?</h3>
+<p>It is a real constraint, not a marketing choice. For longer files you split at keyframes with the FFmpeg commands above, process each segment, then rejoin without re-encoding. The seam is invisible when you cut on keyframes.</p>
+
+<footer>
+  <p>Written by the team behind <a href="https://upgolab.com">UpgoLAB</a>, which is one of the options compared here. Corrections welcome — if a claim about Video2X, Clipchamp or Topaz is wrong, say so and it gets fixed.</p>
+  <p>Related: <a href="https://celticgemini001.github.io/upgolab-tools/compare.html">full four-way comparison</a> · <a href="https://celticgemini001.github.io/upgolab-tools/">notes on the denoise-then-enlarge order</a> · <a href="https://dev.to/celticgemini001/denoise-before-upscale-the-ordering-mistake-and-why-2x-is-the-ceiling-n7m">technical write-up on dev.to</a></p>
+</footer>
+
+</div>
+</body>
+</html>
