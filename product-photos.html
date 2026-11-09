@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Upscaling product photos for e-commerce without fake-looking results</title>
+<meta name="description" content="Marketplace upscalers over-sharpen and invent texture on product shots. Here is the order that keeps a photo honest for a listing, plus what marketplaces actually require.">
+<link rel="canonical" href="https://celticgemini001.github.io/upgolab-tools/product-photos.html">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"What resolution do marketplaces require for product photos?","acceptedAnswer":{"@type":"Answer","text":"Most ask for a long edge of 1600 to 2000 pixels and reject below 1000. That is usually reachable from a phone photo with a single 2x enlargement, which is why 4K product shots are often unnecessary."}},
+{"@type":"Question","name":"Why do upscaled product photos look fake?","acceptedAnswer":{"@type":"Answer","text":"Over-sharpening plus invented texture. Halos form on edges, logos get letter-shaped artifacts, and fabric picks up detail that is not there. Keep the factor near 2x and use a crisp preset rather than a texture one."}},
+{"@type":"Question","name":"Should you upscale or reshoot for a listing?","acceptedAnswer":{"@type":"Answer","text":"Reshoot if you still have the item and a window. Upscaling is for stock already sold, discontinued lines, and archive catalogues where the original file is gone."}},
+{"@type":"Question","name":"Does upscaling help a shot that is already sharp?","acceptedAnswer":{"@type":"Answer","text":"Barely. A sharp 2000px file enlarged to 4000px is mostly interpolation. It helps when the file is below marketplace minimums, not when it already passes."}}]}
+</script>
+<style>
+body{margin:0;font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#111}
+.wrap{max-width:820px;margin:0 auto;padding:48px 24px 96px}
+h1{font-size:2rem;line-height:1.2;margin:0 0 8px;letter-spacing:-.02em}
+h2{font-size:1.3rem;margin:44px 0 12px}h3{font-size:1.05rem;margin:28px 0 8px}
+.sub{color:#666;font-size:1.05rem;margin:0 0 34px}
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:.94rem}
+th,td{text-align:left;padding:11px 12px;border-bottom:1px solid #e5e5e5;vertical-align:top}
+th{font-weight:600;background:#fafafa}
+ul,ol{padding-left:22px}li{margin:6px 0}
+.note{border-left:3px solid #0a5;padding:12px 16px;background:#f8fffb;margin:24px 0}
+.warn{border-left:3px solid #d90;padding:12px 16px;background:#fffbf0;margin:24px 0}
+footer{margin-top:60px;padding-top:22px;border-top:1px solid #e5e5e5;color:#666;font-size:.9rem}
+a{color:#06c}img{max-width:100%;height:auto;border:1px solid #e5e5e5;border-radius:6px;margin:10px 0}
+figure{margin:24px 0}figcaption{color:#666;font-size:.86rem}
+</style>
+</head>
+<body><div class="wrap">
+
+<h1>Upscaling product photos without fake-looking results</h1>
+<p class="sub">Most upscalers are tuned to look impressive in a demo, which means over-sharpened edges and invented texture. On a listing that reads as a fake product. Here is the honest order.</p>
+
+<h2>Reshoot first if you can</h2>
+<p>If you still have the item and a window, a new phone photo beats any upscale. Upscaling is for stock already sold, discontinued lines, and supplier catalogues where the original file is long gone.</p>
+
+<h2>What marketplaces actually require</h2>
+<table>
+  <thead><tr><th>Platform behaviour</th><th>Practical target</th></tr></thead>
+  <tbody>
+    <tr><td>Minimum long edge</td><td>usually 1000 to 1600 px</td></tr>
+    <tr><td>Preferred long edge</td><td>1600 to 2000 px</td></tr>
+    <tr><td>Rejection risk</td><td>below minimum, plus heavy compression</td></tr>
+    <tr><td>Zoom inspection</td><td>buyers do zoom, so halos are visible</td></tr>
+  </tbody>
+</table>
+<p>Notice the numbers. A 900px phone export only needs one 2x step to clear a 1600px requirement. Chasing 4K from a phone sensor adds file weight without adding information.</p>
+
+<div class="warn">
+  <strong>Halos are the tell.</strong> Over-sharpening leaves a light rim on every edge. At thumbnail size it looks crisp, at zoom it looks counterfeit. Sharpen less than feels right.
+</div>
+
+<h2>The order for product work</h2>
+<ol>
+  <li>Denoise the compression grid, especially on supplier files</li>
+  <li>Enlarge 2x per axis, crisp preset</li>
+  <li>Sharpen at output resolution, gently</li>
+  <li>Clean the background last, not first</li>
+</ol>
+
+<div class="note">
+  <strong>Do not use a texture preset.</strong> Skin and fabric presets add grain to a smooth studio shot and it reads as noise on white background listings. Crisp is the right choice here.
+</div>
+
+<h2>Watch the logos</h2>
+<p>Brand marks and small print are the first casualty. Past 2x, a letterform becomes a shape that resembles the letter without being it. Check the logo at 100% before uploading, and if it smears, drop to 1.5x rather than pushing.</p>
+
+<h2>Results at 100% crop</h2>
+<figure>
+  <img src="https://upgolab.com/media/med_b4fd2338fa584b1d.jpg" alt="Ultra Crisp preset, hard edges and small print recovered on a product shot" width="800" loading="lazy">
+  <figcaption>Ultra Crisp — edges and small print, not texture.</figcaption>
+</figure>
+<figure>
+  <img src="https://upgolab.com/media/med_048d3778f940498d.jpg" alt="Balanced detail on a mixed-detail frame without halos" width="800" loading="lazy">
+  <figcaption>Balanced detail — no halo rim on the edges.</figcaption>
+</figure>
+<figure>
+  <img src="https://upgolab.com/media/med_1344197c4c054894.jpg" alt="Supplier file block grid removed before enlarging" width="800" loading="lazy">
+  <figcaption>Supplier files — grid removed before enlarging.</figcaption>
+</figure>
+<figure>
+  <img src="https://celticgemini001.github.io/upgolab-tools/08_true-texture_en.jpg" alt="Texture preset result, correct for lifestyle shots but not for white background" width="800" loading="lazy">
+  <figcaption>True Texture — only for lifestyle shots, not white background.</figcaption>
+</figure>
+
+<h2>Frequently asked</h2>
+<h3>What resolution do marketplaces require for product photos?</h3>
+<p>Most want a long edge of 1600 to 2000 px and reject below 1000. A phone photo usually clears that with one 2x step.</p>
+<h3>Why do upscaled product photos look fake?</h3>
+<p>Over-sharpening and invented texture. Halos form on edges and logos turn into letter-shaped artifacts.</p>
+<h3>Should you upscale or reshoot for a listing?</h3>
+<p>Reshoot if the item is still available. Upscale for sold stock, discontinued lines and archive catalogues.</p>
+<h3>Does upscaling help a shot that is already sharp?</h3>
+<p>Barely. It helps when the file is under the marketplace minimum, not when it already passes.</p>
+
+<h2>Tool</h2>
+<p>The crisp preset used here is one of eight in <a href="https://upgolab.com">UpgoLAB</a>, browser based, free during launch, no watermark, photos to 4 MP. Open it at <a href="https://upgolab.com">https://upgolab.com</a>. Other angles: <a href="https://celticgemini001.github.io/upgolab-tools/compare.html">tool comparison</a> and <a href="https://celticgemini001.github.io/upgolab-tools/blurry-video.html">blurry video guide</a>.</p>
+
+<footer><p>Written by the team behind <a href="https://upgolab.com">UpgoLAB</a>. Updated 2026-11-09.</p></footer>
+</div></body></html>
