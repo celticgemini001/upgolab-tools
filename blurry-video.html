@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to make a blurry video sharp — what works, what cannot be fixed</title>
+<meta name="description" content="Blurry video has four different causes and each needs different treatment. Here is what actually recovers sharpness, what is lost forever, and the order to do it in.">
+<link rel="canonical" href="https://celticgemini001.github.io/upgolab-tools/blurry-video.html">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "How do you fix a blurry video?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Identify the cause first. Compression blur responds to denoising then 2x enlargement. Low-light blur needs denoising before anything else. Motion blur from camera shake barely responds at all. True focus blur is permanent because the sensor never recorded the detail."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can AI make an out-of-focus video sharp?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Only partly. AI reconstructs plausible detail, it does not recover the real detail. On a soft-focus subject it produces a convincing but invented texture. Hold the original at 100% first: if there is edge structure it can be sharpened, if there is none nothing will bring it back."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "What is the maximum useful upscale factor?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "About 2x per axis. Past that the model switches from reconstructing to inventing: faces go waxy and small text becomes strokes that look like letters but are not. A 540p source at 2x reaches 1080p, which is enough for anything watched on a screen."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do you remove compression blocks from a video?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Treat them as structure, not noise. Compression imposes a regular block grid whereas sensor grain is random, so a generic denoiser leaves the grid in place and the upscaler amplifies it. Denoise for block artifacts specifically, then enlarge."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How do you upscale a video longer than the tool allows?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Split at keyframes so the source is not re-encoded, process each segment, then rejoin with concat. Cutting on keyframes keeps the seam invisible. One command: ffmpeg -i input.mp4 -c copy -f segment -segment_time 30 -reset_timestamps 1 seg-%03d.mp4"
+      }
+    }
+  ]
+}
+</script>
+<style>
+  :root { --fg:#111; --muted:#666; --line:#e5e5e5; --accent:#0a5; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; color:var(--fg); }
+  .wrap { max-width:820px; margin:0 auto; padding:48px 24px 96px; }
+  h1 { font-size:2rem; line-height:1.2; margin:0 0 8px; letter-spacing:-0.02em; }
+  h2 { font-size:1.3rem; margin:48px 0 12px; }
+  h3 { font-size:1.05rem; margin:32px 0 8px; }
+  .sub { color:var(--muted); font-size:1.05rem; margin:0 0 36px; }
+  table { width:100%; border-collapse:collapse; margin:20px 0; font-size:0.94rem; }
+  th, td { text-align:left; padding:11px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-weight:600; background:#fafafa; }
+  ul, ol { padding-left:22px; } li { margin:6px 0; }
+  pre { background:#f6f6f6; border:1px solid var(--line); border-radius:6px; padding:14px; overflow-x:auto; font-size:.86rem; }
+  code { font-family:ui-monospace,Menlo,monospace; }
+  .note { border-left:3px solid var(--accent); padding:12px 16px; background:#f8fffb; margin:24px 0; }
+  .warn { border-left:3px solid #d90; padding:12px 16px; background:#fffbf0; margin:24px 0; }
+  footer { margin-top:64px; padding-top:24px; border-top:1px solid var(--line); color:var(--muted); font-size:.9rem; }
+  a { color:#06c; }
+  img { max-width:100%; height:auto; border:1px solid var(--line); border-radius:6px; margin:10px 0; }
+  figure { margin:24px 0; } figcaption { color:var(--muted); font-size:.86rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>How to make a blurry video sharp</h1>
+<p class="sub">Blurry video has four different causes. Each one needs different treatment, and one of them cannot be fixed at all. Diagnose before you process.</p>
+
+<h2>Fix by cause, not by tool</h2>
+<table>
+  <thead><tr><th>Cause</th><th>Recoverable?</th><th>What to do</th></tr></thead>
+  <tbody>
+    <tr><td>Compressed by a messaging app (block grid, dark-area noise)</td><td>Mostly yes</td><td>Denoise for block artifacts, then enlarge max 2x</td></tr>
+    <tr><td>Low light, high ISO</td><td>Partly</td><td>Denoise first, then enlarge. Accept flatter skin</td></tr>
+    <tr><td>Camera shake, whip pan</td><td>Barely</td><td>Pick a motion-tolerant preset, do not over-sharpen</td></tr>
+    <tr><td>True out-of-focus</td><td>No</td><td>Nothing. The sensor never recorded the detail</td></tr>
+  </tbody>
+</table>
+
+<h2>Diagnose in ten seconds</h2>
+<ol>
+  <li>Pull one frame at full resolution.</li>
+  <li>View it at 100%, not fitted to the window.</li>
+  <li>Look at a hard edge — a hairline, a text stroke, a window frame.</li>
+</ol>
+<p>Structure present means it can probably be sharpened. No structure at all means it is focus blur, and no tool will invent the real detail back. Stop there and save the time.</p>
+
+<div class="warn">
+  <strong>The most common wasted hour:</strong> running three different upscalers on footage that was simply out of focus, then comparing them. They will all produce the same softened result because the information is not in the file.
+</div>
+
+<h2>The order that works</h2>
+<ol>
+  <li>Denoise, targeting compression artifacts</li>
+  <li>Enlarge at most 2x per axis</li>
+  <li>Inspect at 100% on the hair edge</li>
+  <li>Grade last</li>
+</ol>
+<p>Enlarging first teaches the model the compression blocks and enlarges them too. The result looks sharp until you put it next to the source.</p>
+
+<h2>Why 2x is the ceiling</h2>
+<p>Past roughly 2x the model switches from reconstructing to inventing. Faces go waxy, small text becomes strokes that resemble letters without being them. A 540p source at 2x lands at 1080p, which is enough for anything watched on a screen. The 4K and 8K labels describe output resolution, not recovered information.</p>
+
+<div class="note">
+  <strong>Compression noise is not grain.</strong> Compression imposes a regular block grid. Sensor grain is random. A generic denoiser treats the grid as noise and leaves it in place, then the upscaler amplifies it. This distinction changed results more than any model choice.
+</div>
+
+<h2>Long clips: split at keyframes</h2>
+<p>Segmenting without re-encoding keeps the source intact:</p>
+<pre><code>ffmpeg -i input.mp4 -c copy -f segment -segment_time 30 -reset_timestamps 1 seg-%03d.mp4</code></pre>
+<p>Process each segment, then rejoin:</p>
+<pre><code>printf "file '%s'\n" seg-*.mp4 &gt; list.txt
+ffmpeg -f concat -safe 0 -i list.txt -c output.mp4</code></pre>
+
+<h2>What each preset is for</h2>
+<figure>
+  <img src="https://upgolab.com/media/med_1344197c4c054894.jpg" alt="Social Denoise preset, messaging app block grid removed before enlarging" width="800" loading="lazy">
+  <figcaption>Social Denoise — the compressed-clip case, grid removed before enlarging.</figcaption>
+</figure>
+<figure>
+  <img src="https://upgolab.com/media/med_c079d08484cf4f81.jpg" alt="Portrait Studio preset, hair edge preserved at 100 percent crop" width="800" loading="lazy">
+  <figcaption>Portrait Studio — hair edge at 100%, where most upscalers fail.</figcaption>
+</figure>
+<figure>
+  <img src="https://upgolab.com/media/med_b4fd2338fa584b1d.jpg" alt="Ultra Crisp preset, hard edges and small text recovered" width="800" loading="lazy">
+  <figcaption>Ultra Crisp — for text and screenshots rather than faces.</figcaption>
+</figure>
+<figure>
+  <img src="https://upgolab.com/media/med_ac7b6755969544f3.jpg" alt="Cinematic preset, shadow detail held without crushing" width="800" loading="lazy">
+  <figcaption>Cinematic — shadows held instead of crushed.</figcaption>
+</figure>
+<figure>
+  <img src="https://celticgemini001.github.io/upgolab-tools/08_true-texture_en.jpg" alt="True Texture preset, fabric grain retained" width="800" loading="lazy">
+  <figcaption>True Texture — damage in the surface rather than the subject.</figcaption>
+</figure>
+
+<h2>Frequently asked</h2>
+
+<h3>How do you fix a blurry video?</h3>
+<p>Identify the cause first. Compression blur responds to denoising then 2x enlargement. Low-light blur needs denoising before anything else. Motion blur barely responds. True focus blur is permanent.</p>
+
+<h3>Can AI make an out-of-focus video sharp?</h3>
+<p>Only partly. AI reconstructs plausible detail, it does not recover the real detail. On a soft subject it produces convincing but invented texture.</p>
+
+<h3>What is the maximum useful upscale factor?</h3>
+<p>About 2x per axis. Past that the model invents rather than reconstructs.</p>
+
+<h3>How do you remove compression blocks from a video?</h3>
+<p>Treat them as structure, not noise. Denoise for block artifacts specifically, then enlarge.</p>
+
+<h3>How do you upscale a video longer than the tool allows?</h3>
+<p>Split at keyframes, process each segment, rejoin with concat. Cutting on keyframes keeps the seam invisible.</p>
+
+<h2>Tools</h2>
+<p>I put this pipeline into <a href="https://upgolab.com">UpgoLAB</a> — browser-based, eight presets by damage type rather than one slider, free during launch, no card, no watermark. Photos to 4 MP, clips to 30 seconds. Run it here: <a href="https://upgolab.com">https://upgolab.com</a></p>
+
+<p>Comparison against Upscayl, Video2X and Topaz: <a href="https://celticgemini001.github.io/upgolab-tools/compare.html">four-way comparison</a>. Free replacement options for Topaz: <a href="https://celticgemini001.github.io/upgolab-tools/topaz-alternative.html">Topaz alternatives</a>.</p>
+
+<footer>
+  <p>Written by the team behind <a href="https://upgolab.com">UpgoLAB</a>. Corrections welcome. Updated 2026-11-09.</p>
+</footer>
+
+</div>
+</body>
+</html>
