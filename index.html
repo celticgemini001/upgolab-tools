@@ -143,6 +143,16 @@ That single fact reframes most upscaling decisions.</p>
   <span class="metric">alpha band 1px → 2px</span>
 </a>
 
+<a class="card" href="/upgolab-anisotropic-upscale/">
+  <h3>Stretching One Axis: Anisotropic Upscale, Measured</h3>
+  <p>Every guide quotes a single multiplier, but real jobs are often lopsided. Measured on a
+  1080×720 reference: scaling one axis scores <strong>+2.2 dB</strong> over scaling both —
+  more than the entire nearest-to-Lanczos ladder (+1.5 dB) — while costing 5.8% more bytes at
+  fixed CRF. Two pieces of folklore did not survive: axis-split two-pass resampling changed
+  PSNR by ≤0.006 dB, and edge geometry did not shift.</p>
+  <span class="metric">+2.2 dB axes vs +1.5 dB kernels</span>
+</a>
+
 <a class="card" href="/upgolab-what-nofollow-means/">
   <h3>rel=nofollow vs rel="nofollow,noopener", Measured</h3>
   <p>A comma inside <code>rel</code> is not a separator. Measured in Chrome 157: the
@@ -156,7 +166,7 @@ That single fact reframes most upscaling decisions.</p>
 
 <h2>Which knob actually decides whether detail survives?</h2>
 
-<p>The nine guides above each change one thing at a time. That is fine for explaining a mechanism and
+<p>The eleven guides above each change one thing at a time. That is fine for explaining a mechanism and
 useless for ranking causes, because the knobs interact. So the next test ran a full factorial:
 <strong>3 scale factors × 3 kernels × 4 content classes = 36 cells</strong>, on 1024×1024 sources.
 Each source was downscaled with a box filter (no ringing introduced before the test), then
@@ -352,7 +362,7 @@ seconds rather than a render queue.</p>
 
 <footer>
 Published by <a href="https://upgolab.com">UpgoLAB</a> — AI photo and short-video upscaling
-in the browser. Index of ten measured guides; scripts reproducible with ffmpeg and numpy.
+in the browser. Index of eleven measured guides; scripts reproducible with ffmpeg and numpy.
 
 <style>
 .sisternav{margin:2rem 0 0;padding-top:1.2rem;border-top:1px solid #e2e5ea}
@@ -376,7 +386,8 @@ in the browser. Index of ten measured guides; scripts reproducible with ffmpeg a
   <li><a href="https://celticgemini001.github.io/upgolab-screen-recording-4k/">Screen recording to 4K</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-thumbnail-4k-master/">4K thumbnail master</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-remove-background-and-upscale/">Cutout and upscale</a></li>
-  <li><a href="https://celticgemini001.github.io/upgolab-what-nofollow-means/">Why rel=nofollow,noopener ships as dofollow</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-anisotropic-upscale/">Stretching one axis</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-what-nofollow-means/">What rel=nofollow actually does</a></li>
 </ul>
 </nav>
 </footer>
