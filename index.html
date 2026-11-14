@@ -239,15 +239,15 @@ scored against the same ground truth:</p>
 <thead><tr><th>Factor</th><th>Content</th><th class="num">Plain</th><th class="num">Best sharpening</th><th class="num">Gap closed</th></tr></thead>
 <tbody>
 <tr><td>2×</td><td>Text / UI</td><td class="num">39.63%</td><td class="num">75.24%</td><td class="num"><strong>59.0%</strong></td></tr>
-<tr><td>2×</td><td>Line art</td><td class="num">36.47%</td><td class="num">73.89%</td><td class="num"><strong>58.9%</strong></td></tr>
+<tr><td>2×</td><td>Line art</td><td class="num">32.82%</td><td class="num">67.32%</td><td class="num"><strong>51.4%</strong></td></tr>
 <tr><td>4×</td><td>Text / UI</td><td class="num">6.55%</td><td class="num">17.63%</td><td class="num"><strong>11.9%</strong></td></tr>
-<tr><td>4×</td><td>Line art</td><td class="num">10.05%</td><td class="num">21.84%</td><td class="num"><strong>13.1%</strong></td></tr>
+<tr><td>4×</td><td>Line art</td><td class="num">8.66%</td><td class="num">18.71%</td><td class="num"><strong>11.0%</strong></td></tr>
 </tbody>
 </table>
 
-<p>At 2× a heavy unsharp mask recovers roughly six tenths of what interpolation threw away. At 4×
-the identical operation recovers one eighth. Sharpening is not rescuing detail — it is amplifying
-the edge energy that <em>is</em> there, and at 4× there is very little left to amplify.</p>
+<p>At 2× a heavy unsharp mask recovers half to six tenths of what interpolation threw away. At 4×
+the identical operation recovers about one eighth. Sharpening is not rescuing detail — it is
+amplifying the edge energy that <em>is</em> there, and at 4× there is very little left to amplify.</p>
 
 <p>The side effect scales the other way, and it is the one that shows up in finished work. Ink
 coverage against ground truth, on line art:</p>
@@ -255,24 +255,25 @@ coverage against ground truth, on line art:</p>
 <table>
 <thead><tr><th>Post-op</th><th class="num">Ink at 2×</th><th class="num">Δ vs GT</th><th class="num">Ink at 4×</th><th class="num">Δ vs GT</th></tr></thead>
 <tbody>
-<tr><td>Lanczos, no sharpening</td><td class="num">4.15%</td><td class="num">−5.51</td><td class="num">3.00%</td><td class="num">−6.66</td></tr>
-<tr><td>unsharp r1 100%</td><td class="num">15.16%</td><td class="num">+5.51</td><td class="num">4.49%</td><td class="num">−5.17</td></tr>
-<tr><td>unsharp r2 150%</td><td class="num">15.28%</td><td class="num">+5.63</td><td class="num">5.74%</td><td class="num">−3.92</td></tr>
+<tr><td>Lanczos, no sharpening</td><td class="num">4.19%</td><td class="num">−5.53</td><td class="num">3.00%</td><td class="num">−6.72</td></tr>
+<tr><td>unsharp r1 100%</td><td class="num">15.22%</td><td class="num">+5.49</td><td class="num">4.49%</td><td class="num">−5.23</td></tr>
+<tr><td>unsharp r2 150%</td><td class="num">15.38%</td><td class="num">+5.66</td><td class="num">5.78%</td><td class="num">−3.95</td></tr>
 </tbody>
 </table>
 
-<p>Ground truth is 9.66% ink. At 2× the unsharp mask does not restore the missing ink — it doubles
-it, taking a 5.5-point deficit to a 5.5-point surplus. The strokes do not come back; a halo of
-near-black pixels appears next to them and the ink counter cannot tell the difference. At 4× the
-mask never even reaches parity: 5.74% against a 9.66% target, still 41% short after the heaviest
-setting tested.</p>
+<p>Ground truth is 9.72% ink. At 2× the unsharp mask does not restore the missing ink — it
+multiplies it by 3.6, taking a 5.5-point deficit to a 5.5-point surplus. The strokes do not come
+back; a halo of near-black pixels appears next to them and the ink counter cannot tell the
+difference. At 4× the mask never even reaches parity: 5.78% against a 9.72% target, still 41%
+short after the heaviest setting tested.</p>
 
 <div class="callout">
 <p><strong>So the ranking of knobs holds after post-processing too.</strong> Sharpening is a
 correction applied after the information has already been destroyed, and its recovery rate falls
-from ~59% to ~12% as the factor doubles. The honest summary of the factorial and this follow-up:
-<em>choose the smallest scale factor your output format allows, then choose content-appropriate
-sharpening; the interpolation kernel is close to irrelevant next to both.</em></p>
+from 51–59% to 11–12% as the factor doubles. The honest summary of the factorial and this
+follow-up: <em>choose the smallest scale factor your output format allows, then choose
+content-appropriate sharpening; the interpolation kernel is close to irrelevant next to
+both.</em></p>
 </div>
 
 <h3>Reproduce it</h3>
@@ -297,6 +298,15 @@ for f in (2, 3, 4):
         up = np.asarray(Image.fromarray(src).resize((gt.shape[1], gt.shape[0]),
                                                     getattr(Image, k)), np.float32)
         print(f, k, round(100 * hf_fraction(up) / ref, 2), '%')
+
+# the sharpening test, same source, same scorer
+from PIL import ImageFilter
+for f, pct, rad in ((2, 200, 1), (4, 150, 2)):
+    src = np.asarray(Image.fromarray(gt.astype(np.uint8))
+                     .resize((gt.shape[1]//f, gt.shape[0]//f), Image.BOX))
+    up = Image.fromarray(src).resize((gt.shape[1], gt.shape[0]), Image.LANCZOS).convert('L')
+    sh = up.filter(ImageFilter.UnsharpMask(radius=rad, percent=pct, threshold=0))
+    print(f, 'sharpened', round(100 * hf_fraction(np.asarray(sh, np.float32)) / ref, 2), '%')
 </code></pre>
 
 <div class="callout">
