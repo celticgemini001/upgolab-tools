@@ -40,6 +40,11 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 .callout{border-left:3px solid var(--acc);background:#f5f8fd;padding:.9rem 1.1rem;
  margin:1.7rem 0;border-radius:0 6px 6px 0}
 .callout p{margin:.3rem 0}
+pre{background:#f6f7f9;border:1px solid var(--line);border-radius:6px;padding:.9rem 1rem;
+ overflow-x:auto;font-size:.82rem;line-height:1.5;margin:1.3rem 0}
+pre code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:none;padding:0}
+code{background:#f2f5fa;padding:.1rem .3rem;border-radius:4px;
+ font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.88em}
 footer{margin-top:4rem;padding-top:1.4rem;border-top:1px solid var(--line);
  font-size:.9rem;color:var(--mut)}
 </style>
@@ -146,6 +151,162 @@ That single fact reframes most upscaling decisions.</p>
   party sees.</p>
   <span class="metric">same Referer for plain / nofollow / ugc</span>
 </a>
+
+<h2>Which knob actually decides whether detail survives?</h2>
+
+<p>The nine guides above each change one thing at a time. That is fine for explaining a mechanism and
+useless for ranking causes, because the knobs interact. So the next test ran a full factorial:
+<strong>3 scale factors × 3 kernels × 4 content classes = 36 cells</strong>, on 1024×1024 sources.
+Each source was downscaled with a box filter (no ringing introduced before the test), then
+upscaled back and scored for high-frequency retention against its own ground truth.</p>
+
+<p>The point of a factorial is not the 36 numbers. It is that you can attribute the variance
+between them to a cause. Taking the main-effect sum of squares on log retention:</p>
+
+<table>
+<thead><tr><th>Source of variation</th><th class="num">Levels</th><th class="num">Share of variance</th></tr></thead>
+<tbody>
+<tr><td>Scale factor (2× / 3× / 4×)</td><td class="num">3</td><td class="num"><strong>70.1%</strong></td></tr>
+<tr><td>Content class (text, line art, portrait, product edge)</td><td class="num">4</td><td class="num">17.3%</td></tr>
+<tr><td>Kernel (bilinear / bicubic / lanczos)</td><td class="num">3</td><td class="num"><strong>0.1%</strong></td></tr>
+</tbody>
+</table>
+
+<p>Choosing the kernel — the decision every upscaling UI puts first, in a dropdown — accounts for
+one part in a thousand of the variation in surviving detail. The scale factor accounts for seven
+hundred times more. Content class sits in between, which is why presets named after content
+("photo", "anime", "text") beat presets named after filters.</p>
+
+<p>Mean high-frequency retention by content class and factor:</p>
+
+<table>
+<thead><tr><th>Content class</th><th class="num">2×</th><th class="num">3×</th><th class="num">4×</th></tr></thead>
+<tbody>
+<tr><td>Text / UI</td><td class="num">37.43%</td><td class="num">22.60%</td><td class="num">7.47%</td></tr>
+<tr><td>Line art</td><td class="num">30.01%</td><td class="num">16.27%</td><td class="num">8.37%</td></tr>
+<tr><td>Portrait-like</td><td class="num">36.81%</td><td class="num">24.82%</td><td class="num">21.27%</td></tr>
+<tr><td>Product edge</td><td class="num">28.00%</td><td class="num">14.14%</td><td class="num">7.13%</td></tr>
+<tr><td><strong>All cells</strong></td><td class="num"><strong>33.06%</strong></td><td class="num"><strong>19.46%</strong></td><td class="num"><strong>11.06%</strong></td></tr>
+</tbody>
+</table>
+
+<h3>The kernel ranking flips, which is why it cannot be trusted</h3>
+
+<p>If kernel mattered, the best kernel would be the best kernel. Across the twelve cells at each
+factor, averaged:</p>
+
+<table>
+<thead><tr><th>Factor</th><th class="num">bilinear</th><th class="num">bicubic</th><th class="num">lanczos</th><th>Winner</th></tr></thead>
+<tbody>
+<tr><td>2×</td><td class="num">28.02%</td><td class="num">35.98%</td><td class="num">35.19%</td><td>bicubic</td></tr>
+<tr><td>3×</td><td class="num">20.43%</td><td class="num">19.55%</td><td class="num">18.38%</td><td>bilinear</td></tr>
+<tr><td>4×</td><td class="num">11.92%</td><td class="num">10.68%</td><td class="num">10.57%</td><td>bilinear</td></tr>
+</tbody>
+</table>
+
+<p>Bicubic wins at 2× by 2.4 points and loses at 4× by 1.3. The ordering is not a property of the
+kernel; it is a property of the kernel <em>at that factor on that content</em>. Every "which
+interpolation is best" comparison that fixes one factor is reporting an interaction term as if it
+were a main effect.</p>
+
+<p>The interaction is visible directly as the spread between kernels inside a single cell. At 2×
+the spread reaches <strong>10.27 points</strong> on text; at 4× the same content has only
+<strong>2.37 points</strong> of kernel spread. The higher the factor, the less the filter choice
+can matter, because there is less information left to preserve differently.</p>
+
+<h3>Two results that contradict the usual advice</h3>
+
+<p><strong>RMSE does not track detail retention.</strong> Correlating log retention against RMSE
+across all 36 cells gives <em>r</em> = −0.30. A weaker relationship than that is hard to produce
+from numbers measuring the same images. At 4× on line art, lanczos has the <em>lowest</em> RMSE
+(66.22) and the <em>highest</em> retention (8.66%); at 4× on product edges, bilinear has both the
+highest RMSE (6.65) and the highest retention (9.19%). If you rank methods by error you will pick
+differently depending on the content, which means the metric is not measuring what the eye uses.</p>
+
+<p><strong>Step size beats every other choice, and the curve is not linear.</strong> Going 3× → 4×
+costs a mean of 8.4 points of retention (19.46% → 11.06%); going 2× → 3× costs 13.6 points. The
+first doubling is the expensive one. Practical reading: if a target size is reachable at 2× by
+choosing a smaller output format, that beats reaching it at 4× with the best possible kernel by a
+factor of three in surviving detail.</p>
+
+<h3>Can sharpening recover what interpolation lost?</h3>
+
+<p>The obvious next move after a soft upscale is to sharpen it. Measured on the same two
+high-frequency classes (text/UI and line art), Lanczos upscale followed by an unsharp mask,
+scored against the same ground truth:</p>
+
+<table>
+<thead><tr><th>Factor</th><th>Content</th><th class="num">Plain</th><th class="num">Best sharpening</th><th class="num">Gap closed</th></tr></thead>
+<tbody>
+<tr><td>2×</td><td>Text / UI</td><td class="num">39.63%</td><td class="num">75.24%</td><td class="num"><strong>59.0%</strong></td></tr>
+<tr><td>2×</td><td>Line art</td><td class="num">36.47%</td><td class="num">73.89%</td><td class="num"><strong>58.9%</strong></td></tr>
+<tr><td>4×</td><td>Text / UI</td><td class="num">6.55%</td><td class="num">17.63%</td><td class="num"><strong>11.9%</strong></td></tr>
+<tr><td>4×</td><td>Line art</td><td class="num">10.05%</td><td class="num">21.84%</td><td class="num"><strong>13.1%</strong></td></tr>
+</tbody>
+</table>
+
+<p>At 2× a heavy unsharp mask recovers roughly six tenths of what interpolation threw away. At 4×
+the identical operation recovers one eighth. Sharpening is not rescuing detail — it is amplifying
+the edge energy that <em>is</em> there, and at 4× there is very little left to amplify.</p>
+
+<p>The side effect scales the other way, and it is the one that shows up in finished work. Ink
+coverage against ground truth, on line art:</p>
+
+<table>
+<thead><tr><th>Post-op</th><th class="num">Ink at 2×</th><th class="num">Δ vs GT</th><th class="num">Ink at 4×</th><th class="num">Δ vs GT</th></tr></thead>
+<tbody>
+<tr><td>Lanczos, no sharpening</td><td class="num">4.15%</td><td class="num">−5.51</td><td class="num">3.00%</td><td class="num">−6.66</td></tr>
+<tr><td>unsharp r1 100%</td><td class="num">15.16%</td><td class="num">+5.51</td><td class="num">4.49%</td><td class="num">−5.17</td></tr>
+<tr><td>unsharp r2 150%</td><td class="num">15.28%</td><td class="num">+5.63</td><td class="num">5.74%</td><td class="num">−3.92</td></tr>
+</tbody>
+</table>
+
+<p>Ground truth is 9.66% ink. At 2× the unsharp mask does not restore the missing ink — it doubles
+it, taking a 5.5-point deficit to a 5.5-point surplus. The strokes do not come back; a halo of
+near-black pixels appears next to them and the ink counter cannot tell the difference. At 4× the
+mask never even reaches parity: 5.74% against a 9.66% target, still 41% short after the heaviest
+setting tested.</p>
+
+<div class="callout">
+<p><strong>So the ranking of knobs holds after post-processing too.</strong> Sharpening is a
+correction applied after the information has already been destroyed, and its recovery rate falls
+from ~59% to ~12% as the factor doubles. The honest summary of the factorial and this follow-up:
+<em>choose the smallest scale factor your output format allows, then choose content-appropriate
+sharpening; the interpolation kernel is close to irrelevant next to both.</em></p>
+</div>
+
+<h3>Reproduce it</h3>
+
+<pre><code>import numpy as np
+from PIL import Image
+
+def hf_fraction(a):
+    a = a.astype(np.float64); a -= a.mean()
+    mag = np.abs(np.fft.fftshift(np.fft.fft2(a)))
+    h, w = mag.shape
+    yy, xx = np.mgrid[0:h, 0:w]
+    r = np.hypot(yy - h/2, xx - w/2)
+    return mag[r &gt; 0.18*w].sum() / mag[r &lt;= 0.18*w].sum()
+
+gt  = np.asarray(Image.open('source.png').convert('L'), np.float32)
+ref = hf_fraction(gt)
+for f in (2, 3, 4):
+    src = np.asarray(Image.fromarray(gt.astype(np.uint8))
+                     .resize((gt.shape[1]//f, gt.shape[0]//f), Image.BOX))
+    for k in ('BILINEAR', 'BICUBIC', 'LANCZOS'):
+        up = np.asarray(Image.fromarray(src).resize((gt.shape[1], gt.shape[0]),
+                                                    getattr(Image, k)), np.float32)
+        print(f, k, round(100 * hf_fraction(up) / ref, 2), '%')
+</code></pre>
+
+<div class="callout">
+<p><strong>One honest caveat on the ratio.</strong> Retention is a ratio against each source's own
+high-frequency energy, so smooth content scores higher by construction — the portrait class keeps
+21.27% at 4× partly because its ground truth has very little high frequency to lose. That is why
+the variance share above is computed on log retention (which compresses the ratio) and why the
+product-edge and text numbers, not the portrait numbers, are the ones to carry into a decision
+about hard-edged content.</p>
+</div>
 
 <div class="callout">
 <p><strong>How to use these.</strong> Each page states a mechanism, a measurement, and a
