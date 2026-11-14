@@ -144,12 +144,14 @@ That single fact reframes most upscaling decisions.</p>
 </a>
 
 <a class="card" href="/upgolab-what-nofollow-means/">
-  <h3>What rel=nofollow Actually Does, Measured</h3>
-  <p>Five link variants clicked in a real browser: <code>nofollow</code> and
-  <code>nofollow ugc</code> send exactly the same Referer as a plain link. Only
-  <code>noreferrer</code> strips it — and Referrer-Policy, not rel, decides what a third
-  party sees.</p>
-  <span class="metric">same Referer for plain / nofollow / ugc</span>
+  <h3>rel=nofollow vs rel="nofollow,noopener", Measured</h3>
+  <p>A comma inside <code>rel</code> is not a separator. Measured in Chrome 157: the
+  <code>nofollow,noopener</code> form parses as one token, so the link silently ships as
+  <strong>dofollow</strong>, and <code>noreferrer</code> stops stripping the Referer. A
+  non-breaking space fails the same way. Plus why <code>nofollow</code> still sends the
+  Referer, and why the <code>window.opener</code> check proves nothing on a
+  <code>_blank</code> link.</p>
+  <span class="metric">comma form → dofollow, 3/3 runs</span>
 </a>
 
 <h2>Which knob actually decides whether detail survives?</h2>
@@ -374,7 +376,7 @@ in the browser. Index of ten measured guides; scripts reproducible with ffmpeg a
   <li><a href="https://celticgemini001.github.io/upgolab-screen-recording-4k/">Screen recording to 4K</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-thumbnail-4k-master/">4K thumbnail master</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-remove-background-and-upscale/">Cutout and upscale</a></li>
-  <li><a href="https://celticgemini001.github.io/upgolab-what-nofollow-means/">What rel=nofollow actually does</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-what-nofollow-means/">Why rel=nofollow,noopener ships as dofollow</a></li>
 </ul>
 </nav>
 </footer>
