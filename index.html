@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AI Upscaling Notes — Measured Guides to 2K, 4K and Detail Loss</title>
-<meta name="description" content="An index of measured guides to AI upscaling: what interpolation actually does to detail, bits-per-pixel math for 2K vs 4K, line art, text, thumbnails and restoration pipelines.">
+<meta name="description" content="An index of measured guides to AI upscaling: what interpolation actually does to detail, bits-per-pixel math for 2K vs 4K, 8-bit vs 10-bit banding, line art, text, thumbnails and restoration pipelines.">
 <link rel="canonical" href="https://celticgemini001.github.io/upgolab-tools/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="AI Upscaling Notes — Measured Guides">
@@ -175,6 +175,17 @@ That single fact reframes most upscaling decisions.</p>
   <span class="metric">comma form → dofollow, 3/3 runs</span>
 </a>
 
+<a class="card" href="/upgolab-bit-depth-banding/">
+  <h3>8-bit vs 10-bit: Why Banding Widens When You Upscale</h3>
+  <p>An 8-bit gradient upscaled 4x produces <strong>16-pixel</strong> flat plateaus, and plateau
+  width is exactly <strong>width/255</strong> at every scale factor — 4.00, 8.00, 16.00, 32.00 px
+  measured against 4.02, 8.03, 16.06, 32.13 predicted. Dither collapses that to 2.00 px but costs
+  <em>37% worse RMSE</em>, because rounding is the optimal quantiser by definition. A 16-bit master
+  does nothing once you deliver 8-bit: identical 16.00 px. And 10-bit H.264 came out
+  <strong>smaller</strong> at every CRF tested, not 20-50% larger.</p>
+  <span class="metric">plateau = width/255 · dither +37% RMSE · 10-bit smaller at CRF 12-28</span>
+</a>
+
 <a class="card" href="/upgolab-gamma-vs-linear-light/">
   <h3>Gamma Space vs Linear Light: Does sRGB Resampling Cost Quality?</h3>
   <p>The standard demonstration is real: a 50/50 checkerboard area-averaged in sRGB returns
@@ -188,7 +199,7 @@ That single fact reframes most upscaling decisions.</p>
 
 <h2>Which knob actually decides whether detail survives?</h2>
 
-<p>The twelve guides above each change one thing at a time. That is fine for explaining a mechanism and
+<p>The fourteen guides above each change one thing at a time. That is fine for explaining a mechanism and
 useless for ranking causes, because the knobs interact. So the next test ran a full factorial:
 <strong>3 scale factors × 3 kernels × 4 content classes = 36 cells</strong>, on 1024×1024 sources.
 Each source was downscaled with a box filter (no ringing introduced before the test), then
@@ -411,6 +422,7 @@ in the browser. Index of eleven measured guides; scripts reproducible with ffmpe
   <li><a href="https://celticgemini001.github.io/upgolab-anisotropic-upscale/">Stretching one axis</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-what-nofollow-means/">What rel=nofollow actually does</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-gamma-vs-linear-light/">Gamma vs linear light</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-bit-depth-banding/">8-bit vs 10-bit banding</a></li>
 </ul>
 </nav>
 </footer>
