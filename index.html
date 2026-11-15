@@ -196,6 +196,17 @@ That single fact reframes most upscaling decisions.</p>
   <span class="metric">seam ratio 1.26× at every scale · deblock after wins · jpeg = 8.8% of error at 4×</span>
 </a>
 
+<a class="card" href="/upgolab-upscale-vs-reshoot/">
+  <h3>Re-Shoot or Upscale? The Break-Even Point, Measured</h3>
+  <p>A real 1080×1620 capture downscaled and put back: a 4× upscale is <strong>27.2 dB</strong>
+  from the original, each doubling costs 4–5 dB, and <em>nearest-neighbour beats Lanczos on
+  high-frequency energy by 6.9×</em> while losing 2.4 dB of PSNR. Filter both images to what the
+  eye resolves and the same 4× scores <strong>32.5 dB</strong> at arm's length and 40.3 dB from two
+  metres, which is what turns the argument into a viewing-distance table. Three negative
+  results, including resampling <em>amplifying</em> noise below one 8-bit level.</p>
+  <span class="metric">27.2 → 32.5 dB with distance · chip 0.09 dB · crop +7.8 dB</span>
+</a>
+
 <a class="card" href="/upgolab-gamma-vs-linear-light/">
   <h3>Gamma Space vs Linear Light: Does sRGB Resampling Cost Quality?</h3>
   <p>The standard demonstration is real: a 50/50 checkerboard area-averaged in sRGB returns
@@ -209,7 +220,7 @@ That single fact reframes most upscaling decisions.</p>
 
 <h2>Which knob actually decides whether detail survives?</h2>
 
-<p>The fourteen guides above each change one thing at a time. That is fine for explaining a mechanism and
+<p>The fifteen guides above each change one thing at a time. That is fine for explaining a mechanism and
 useless for ranking causes, because the knobs interact. So the next test ran a full factorial:
 <strong>3 scale factors × 3 kernels × 4 content classes = 36 cells</strong>, on 1024×1024 sources.
 Each source was downscaled with a box filter (no ringing introduced before the test), then
@@ -434,6 +445,7 @@ in the browser. Index of eleven measured guides; scripts reproducible with ffmpe
   <li><a href="https://celticgemini001.github.io/upgolab-gamma-vs-linear-light/">Gamma vs linear light</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-bit-depth-banding/">8-bit vs 10-bit banding</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-jpeg-blocking-upscale/">JPEG blocking under upscaling</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-upscale-vs-reshoot/">Re-shoot vs upscale</a></li>
 </ul>
 </nav>
 </footer>
