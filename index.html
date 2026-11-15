@@ -219,6 +219,17 @@ That single fact reframes most upscaling decisions.</p>
   <span class="metric">0.45% off · 3 px = exact · blend −0.7 level · 34 dB for per-tile auto-levels</span>
 </a>
 
+<a class="card" href="/upgolab-fractional-upscale-factors/">
+  <h3>Fractional Upscale Factors: Why 1.25× Can Lose to 1.333×</h3>
+  <p>Real targets are rarely 2×. Seven exact rational factors measured on one photograph: the
+  <em>larger</em> factor beat the smaller one, 4/3 over 5/4 by <strong>0.64 dB in five crops of
+  five</strong>, while gradient and HF retention stayed perfectly monotonic. The anomaly vanished
+  under Lanczos and bicubic downscaling and appeared only under an aliasing BOX decimator — so the
+  ranking was measuring the downscaler. Step-chaining lost 0.30–0.70 dB at every split, and
+  sharpening paid +0.055 dB at 100% gradient retention against <strong>+0.375 dB at 88%</strong>.</p>
+  <span class="metric">5/5 crops · chain −0.70 dB · USM 0.05 → 0.38 dB</span>
+</a>
+
 <a class="card" href="/upgolab-gamma-vs-linear-light/">
   <h3>Gamma Space vs Linear Light: Does sRGB Resampling Cost Quality?</h3>
   <p>The standard demonstration is real: a 50/50 checkerboard area-averaged in sRGB returns
@@ -459,6 +470,7 @@ in the browser. Index of seventeen measured guides; scripts reproducible with ff
   <li><a href="https://celticgemini001.github.io/upgolab-jpeg-blocking-upscale/">JPEG blocking under upscaling</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-upscale-vs-reshoot/">Re-shoot vs upscale</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-tiled-upscale-seams/">Tiled upscaling seams</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-fractional-upscale-factors/">Fractional upscale factors</a></li>
 </ul>
 </nav>
 </footer>
