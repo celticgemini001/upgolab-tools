@@ -174,9 +174,20 @@ That single fact reframes most upscaling decisions.</p>
   <span class="metric">comma form → dofollow, 3/3 runs</span>
 </a>
 
+<a class="card" href="/upgolab-gamma-vs-linear-light/">
+  <h3>Gamma Space vs Linear Light: Does sRGB Resampling Cost Quality?</h3>
+  <p>The standard demonstration is real: a 50/50 checkerboard area-averaged in sRGB returns
+  <strong>127/255</strong> where physics demands <strong>187/255</strong> — 60 code values.
+  But on a real photo the same linear pipeline scores <em>0.98 dB worse</em>, and the winner
+  reverses when PSNR is computed in linear light instead of gamma. Pure upscaling with no
+  downscale moves the result by 0.40 cv — nothing. The colour space of your metric decides
+  the winner, which makes most published comparisons uninterpretable.</p>
+  <span class="metric">−60 cv in gamma · winner flips with the metric</span>
+</a>
+
 <h2>Which knob actually decides whether detail survives?</h2>
 
-<p>The eleven guides above each change one thing at a time. That is fine for explaining a mechanism and
+<p>The twelve guides above each change one thing at a time. That is fine for explaining a mechanism and
 useless for ranking causes, because the knobs interact. So the next test ran a full factorial:
 <strong>3 scale factors × 3 kernels × 4 content classes = 36 cells</strong>, on 1024×1024 sources.
 Each source was downscaled with a box filter (no ringing introduced before the test), then
@@ -398,6 +409,7 @@ in the browser. Index of eleven measured guides; scripts reproducible with ffmpe
   <li><a href="https://celticgemini001.github.io/upgolab-remove-background-and-upscale/">Cutout and upscale</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-anisotropic-upscale/">Stretching one axis</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-what-nofollow-means/">What rel=nofollow actually does</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-gamma-vs-linear-light/">Gamma vs linear light</a></li>
 </ul>
 </nav>
 </footer>
