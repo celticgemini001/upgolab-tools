@@ -153,12 +153,13 @@ That single fact reframes most upscaling decisions.</p>
 
 <a class="card" href="/upgolab-anisotropic-upscale/">
   <h3>Stretching One Axis: Anisotropic Upscale, Measured</h3>
-  <p>Every guide quotes a single multiplier, but real jobs are often lopsided. Measured on a
-  1080×720 reference: scaling one axis scores <strong>+2.2 dB</strong> over scaling both —
-  more than the entire nearest-to-Lanczos ladder (+1.5 dB) — while costing 5.8% more bytes at
-  fixed CRF. Two pieces of folklore did not survive: axis-split two-pass resampling changed
-  PSNR by ≤0.006 dB, and edge geometry did not shift.</p>
-  <span class="metric">+2.2 dB axes vs +1.5 dB kernels</span>
+  <p>Every guide quotes a single multiplier, but real jobs are often lopsided. The widely
+  repeated <strong>+2.2 dB for touching one axis</strong> turns out to be a source-pixel budget
+  artefact: that comparison gave the single-axis case twice the input pixels. At equal pixels the
+  two-axis case wins by 4.3 dB on isotropic content, and the sign flips at anisotropy 0.40 —
+  one axis wins by up to 16 dB when the detail sits on the other one. Plus a measured
+  1440×1080→1920×1080 test of pad, crop and stretch.</p>
+  <span class="metric">4.3 dB two-axis · 16 dB one-axis · flips at 0.40</span>
 </a>
 
 <a class="card" href="/upgolab-what-nofollow-means/">
