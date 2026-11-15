@@ -207,6 +207,18 @@ That single fact reframes most upscaling decisions.</p>
   <span class="metric">27.2 → 32.5 dB with distance · chip 0.09 dB · crop +7.8 dB</span>
 </a>
 
+<a class="card" href="/upgolab-tiled-upscale-seams/">
+  <h3>Tiled Upscaling Seams: How Much Context a Tile Needs</h3>
+  <p>Zero-context tiling put <strong>0.45%</strong> of output pixels more than 2 levels off, and
+  <strong>67.6%</strong> of those sat within 2 px of a tile boundary — a 21× concentration inside
+  3.18% of the frame. Three source pixels of context made 54, 64, 108, 180, 256 and 270-pixel tiles
+  all <em>bit-identical</em> to the single-shot result, while blending overlapping tiles was
+  measurably <em>worse</em> than cropping the context back off. Tile size turned out not monotonic:
+  270-pixel tiles scored 8.65 dB worse on seams than 180-pixel ones with half the seam area. Two
+  instrument bugs found and reported.</p>
+  <span class="metric">0.45% off · 3 px = exact · blend −0.7 level · 34 dB for per-tile auto-levels</span>
+</a>
+
 <a class="card" href="/upgolab-gamma-vs-linear-light/">
   <h3>Gamma Space vs Linear Light: Does sRGB Resampling Cost Quality?</h3>
   <p>The standard demonstration is real: a 50/50 checkerboard area-averaged in sRGB returns
@@ -220,7 +232,7 @@ That single fact reframes most upscaling decisions.</p>
 
 <h2>Which knob actually decides whether detail survives?</h2>
 
-<p>The fifteen guides above each change one thing at a time. That is fine for explaining a mechanism and
+<p>The sixteen guides above each change one thing at a time. That is fine for explaining a mechanism and
 useless for ranking causes, because the knobs interact. So the next test ran a full factorial:
 <strong>3 scale factors × 3 kernels × 4 content classes = 36 cells</strong>, on 1024×1024 sources.
 Each source was downscaled with a box filter (no ringing introduced before the test), then
@@ -416,7 +428,7 @@ seconds rather than a render queue.</p>
 
 <footer>
 Published by <a href="https://upgolab.com">UpgoLAB</a> — AI photo and short-video upscaling
-in the browser. Index of eleven measured guides; scripts reproducible with ffmpeg and numpy.
+in the browser. Index of seventeen measured guides; scripts reproducible with ffmpeg and numpy.
 
 <style>
 .sisternav{margin:2rem 0 0;padding-top:1.2rem;border-top:1px solid #e2e5ea}
@@ -446,6 +458,7 @@ in the browser. Index of eleven measured guides; scripts reproducible with ffmpe
   <li><a href="https://celticgemini001.github.io/upgolab-bit-depth-banding/">8-bit vs 10-bit banding</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-jpeg-blocking-upscale/">JPEG blocking under upscaling</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-upscale-vs-reshoot/">Re-shoot vs upscale</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-tiled-upscale-seams/">Tiled upscaling seams</a></li>
 </ul>
 </nav>
 </footer>
