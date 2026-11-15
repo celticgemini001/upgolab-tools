@@ -147,9 +147,10 @@ That single fact reframes most upscaling decisions.</p>
 <a class="card" href="/upgolab-chroma-subsampling/">
   <h3>Chroma Subsampling Before You Upscale: What 4:2:0 Costs</h3>
   <p>A 4:2:0 source has already lost a channel. Measured: luma bit-identical, chroma down
-  9.7 dB at 2x, one-pixel colour lines at exactly 50% contrast. Bilinear beats lanczos for
-  rebuilding chroma — and on smooth-chroma photos 4:4:4 encoded <em>smaller</em> at equal CRF.</p>
-  <span class="metric">Chroma −9.7 dB · 4:4:4 0.977× the bytes</span>
+  9.7 dB at 2x, one-pixel colour lines at exactly 50% contrast. The chroma edge blur is fixed
+  at 2.50 source pixels from 2x to 16x — no upscale setting recovers it, but post-upscale
+  chroma sharpening buys +1.35 dB until edge undershoot doubles.</p>
+  <span class="metric">Chroma −9.7 dB · edge blur 2.50 src-px, flat 2x–16x</span>
 </a>
 
 <a class="card" href="/upgolab-anisotropic-upscale/">
