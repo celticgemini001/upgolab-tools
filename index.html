@@ -186,6 +186,16 @@ That single fact reframes most upscaling decisions.</p>
   <span class="metric">plateau = width/255 · dither +37% RMSE · 10-bit smaller at CRF 12-28</span>
 </a>
 
+<a class="card" href="/upgolab-jpeg-blocking-upscale/">
+  <h3>JPEG Block Seams Don't Get Amplified by Upscaling — They Get Wider</h3>
+  <p>The seam keeps a constant <strong>1.26&times;</strong> contrast against its surroundings at 1×,
+  2×, 4× and 8×; what grows is the area, as k². Deblocking <em>after</em> the upscale beat deblocking
+  before it on both PSNR and seam ratio. Blind 8-grid detection found the phase on 4/4 crops — and
+  the clean control showed <code>R</code> spans 0.668–1.364 with no JPEG present at all, so a raw
+  <code>R</code> above 1 proves nothing. Sharpening did <em>not</em> selectively amplify the seam.</p>
+  <span class="metric">seam ratio 1.26× at every scale · deblock after wins · jpeg = 8.8% of error at 4×</span>
+</a>
+
 <a class="card" href="/upgolab-gamma-vs-linear-light/">
   <h3>Gamma Space vs Linear Light: Does sRGB Resampling Cost Quality?</h3>
   <p>The standard demonstration is real: a 50/50 checkerboard area-averaged in sRGB returns
@@ -423,6 +433,7 @@ in the browser. Index of eleven measured guides; scripts reproducible with ffmpe
   <li><a href="https://celticgemini001.github.io/upgolab-what-nofollow-means/">What rel=nofollow actually does</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-gamma-vs-linear-light/">Gamma vs linear light</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-bit-depth-banding/">8-bit vs 10-bit banding</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-jpeg-blocking-upscale/">JPEG blocking under upscaling</a></li>
 </ul>
 </nav>
 </footer>
