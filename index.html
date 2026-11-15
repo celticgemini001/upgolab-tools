@@ -117,8 +117,9 @@ That single fact reframes most upscaling decisions.</p>
   <h3>Restoring Old Family Video Without a Workstation</h3>
   <p>Four independent failure layers — interlace, noise, resolution, codec damage. The
   deinterlace/denoise order turns out to matter almost not at all (0.8%); the scale factor
-  matters enormously.</p>
-  <span class="metric">order difference 0.8%</span>
+  matters enormously. Deinterlacers differ by 7.7 dB on invented rows, yadif is the worst of
+  four at every frequency, and the filter that wins PSNR carries 266&times; the comb.</p>
+  <span class="metric">deinterlacer gap 7.7 dB</span>
 </a>
 
 <a class="card" href="/upgolab-screen-recording-4k/">
