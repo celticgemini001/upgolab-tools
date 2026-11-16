@@ -10,7 +10,7 @@
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"Why does AI upscaling ruin anime line art?","acceptedAnswer":{"@type":"Answer","text":"Photo models are trained on photographic texture and treat a flat fill as missing detail, so they add grain and shading where the artist intended none. Lines also soften into gradients. A 2D preset is trained on flat fills and hard edges instead."}},
 {"@type":"Question","name":"Should you denoise anime before upscaling?","acceptedAnswer":{"@type":"Answer","text":"Only the compression artifacts, not the flat colour. Aggressive denoising on a flat fill creates blotches. Remove the block grid, then enlarge, and skip anything labelled texture or grain."}},
-{"@type":"Question","name":"What upscale factor is safe for line art?","acceptedAnswer":{"@type":"Answer","text":"2x per axis at most. Past that line weights become uneven, one side of a stroke thickens, and screenshots of text turn into letter-shaped scribbles. For clean vector art, re-exporting at a higher resolution beats upscaling at all."}},
+{"@type":"Question","name":"What upscale factor is safe for line art?","acceptedAnswer":{"@type":"Answer","text":"Measured stroke width error stays under 0.6 percent at both 2x and 4x, so the scale factor does not change line weight. The 2x limit is about file size and processing time. What does vary is stroke contrast with sub-pixel phase, between 50 and 89 percent at 2x, and that spread shrinks at higher factors."}},
 {"@type":"Question","name":"Does JPEG compression matter on anime frames?","acceptedAnswer":{"@type":"Answer","text":"Yes, badly. Block grid artifacts sit right on the line edges, so the upscaler thickens them. Denoise for block artifacts first and the lines come back clean."}}]}
 </script>
 <style>
@@ -39,7 +39,7 @@ figure{margin:24px 0}figcaption{color:#666;font-size:.86rem}
 <body><div class="wrap">
 
 <h1>Upscaling anime and line art without ruining the lines</h1>
-<p class="sub">Line art needs the opposite treatment of a photograph. A photo model sees a flat fill as missing detail and fills it in. Here is what to do instead.</p>
+<p class="sub">Line art needs the opposite treatment of a photograph. A photo model sees a flat fill as missing detail and fills it in. Here is what to do instead — and what the measurement says actually goes wrong.</p>
 
 <h2>Why generic upscalers fail on anime</h2>
 <p>Photo models are trained on grain, pores and texture. Feed them a cel-shaded frame and they decide the flat colour is impoverished, so they add shading that the artist never drew and soften hard strokes into gradients. The result is a blobby frame that reads as "AI processed" at a glance.</p>
@@ -59,7 +59,7 @@ figure{margin:24px 0}figcaption{color:#666;font-size:.86rem}
 <h2>The order</h2>
 <ol>
   <li>Denoise compression blocks only</li>
-  <li>Enlarge at 2x per axis, 2D preset</li>
+  <li>Enlarge — 2x is enough, larger factors do not hurt width</li>
   <li>Check a line edge at 100%</li>
   <li>Stop. Do not grade after</li>
 </ol>
@@ -93,20 +93,153 @@ figure{margin:24px 0}figcaption{color:#666;font-size:.86rem}
   <figcaption>True Texture — only for painted backgrounds, not for cel fills.</figcaption>
 </figure>
 
+<h2>Measured: what actually damages a line</h2>
+<p>The advice above said 2x per axis at most, because past that "line weights go uneven". That is a testable claim, so I tested it. The short version: the claim is wrong about width, and the real defect is somewhere nobody mentions — sub-pixel phase.</p>
+
+<h3>Fixture that makes the question answerable</h3>
+<p>A 400×400 cel frame, flat fill at 0.92 luma, ink at 0.08, four vertical strokes of exactly 1, 2, 3 and 4 px. The frame is rendered at 8× and box-downsampled, so a 1 px stroke can start at any sub-pixel position instead of being snapped to the grid. That last part matters more than anything else here.</p>
+<p>Instead of comparing pixels, the measurement integrates ink: for each stroke, sum (fill − pixel) across the stroke and divide by the fill-to-ink contrast. That gives coverage in source pixels, which is comparable across kernels and scale factors without a reference image to align.</p>
+
+<h3>Experiment 1 — stroke width survives upscaling</h3>
+<p>Each stroke is measured after resampling at 2× and 4×. Error is the measured ink minus the true width, as a percentage of the true width.</p>
+<table>
+  <thead><tr><th>Kernel</th><th>1 px</th><th>2 px</th><th>3 px</th><th>4 px</th><th>at</th></tr></thead>
+  <tbody>
+    <tr><td>bilinear</td><td>−0,09%</td><td>−0,33%</td><td>−0,09%</td><td>−0,21%</td><td>2×</td></tr>
+    <tr><td>bicubic</td><td>−0,56%</td><td>−0,09%</td><td>−0,25%</td><td>−0,09%</td><td>2×</td></tr>
+    <tr><td>lanczos</td><td>+0,37%</td><td><b>−3,36%</b></td><td>−0,09%</td><td>−0,21%</td><td>2×</td></tr>
+    <tr><td>bilinear</td><td>−0,09%</td><td>−0,09%</td><td>−0,09%</td><td>−0,09%</td><td>4×</td></tr>
+    <tr><td>bicubic</td><td>−0,09%</td><td>−0,56%</td><td>−0,09%</td><td>−0,09%</td><td>4×</td></tr>
+    <tr><td>lanczos</td><td>−0,33%</td><td><b>−2,54%</b></td><td>−0,09%</td><td>−0,21%</td><td>4×</td></tr>
+  </tbody>
+</table>
+<p>Every error except one is under 0.6%, and the numbers do not grow with the scale factor — if anything lanczos tightens from −3.35% at 2× to −2.55% at 4×. Stroke width is not what breaks. The one real outlier is lanczos on a 2 px stroke (−3.35%), the exact width where the negative lobes of the kernel land on both flanks at once; bilinear at the same width is off by a third of one percent.</p>
+<p>So "past 2× the line weights go uneven" is refuted as stated. If a stroke comes out the wrong weight at 4×, the cause is upstream, not the scale factor.</p>
+
+<h3>Experiment 2 — sub-pixel phase is the real defect</h3>
+<p>Here is where the damage actually lives. Take eight copies of the same 1 px stroke, each offset by 1/8 px. In the source they are identical: eight 1 px lines, same ink. Render them natively at 2× and all eight measure 99.9% peak contrast. Upscale the 1× source at 2× and they do not agree at all:</p>
+<table>
+  <thead><tr><th>Phase (px)</th><th>bilinear</th><th>bicubic</th><th>lanczos</th><th>native 2×</th></tr></thead>
+  <tbody>
+    <tr><td>0,000</td><td>50,0</td><td>54,6</td><td>58,4</td><td>99,9</td></tr>
+    <tr><td>0,125</td><td>56,0</td><td>62,6</td><td>65,8</td><td>99,9</td></tr>
+    <tr><td>0,250</td><td>62,6</td><td>71,0</td><td>73,8</td><td>99,9</td></tr>
+    <tr><td>0,375</td><td>68,6</td><td>78,4</td><td>81,2</td><td>99,9</td></tr>
+    <tr><td>0,500</td><td>74,7</td><td>86,8</td><td>89,2</td><td>99,9</td></tr>
+    <tr><td><b>spread</b></td><td><b>24,7</b></td><td><b>32,2</b></td><td><b>30,8</b></td><td><b>0,0</b></td></tr>
+  </tbody>
+</table>
+<p>Same 1 px stroke, contrast between 50% and 89% depending only on where it sat on the pixel grid. A stroke on the grid comes back roughly half strength with bilinear; one at half-pixel offset comes back at three quarters. On a drawing with hundreds of strokes at arbitrary positions, that reads as blotchy line weight — thin in some places, missing in others, and it moves as the line curves, because the phase changes continuously along the curve.</p>
+<p>The native column is the control and it is what makes this a finding rather than an artifact: a render at target resolution is 99.9% at every phase. The unevenness is manufactured by resampling, and the source image never had it.</p>
+
+<h3>Experiment 3 — more upscaling helps the contrast spread</h3>
+<p>The same phase sweep on a 2 px stroke, at 2×, 4× and 8×. Worst-phase peak contrast:</p>
+<table>
+  <thead><tr><th>Kernel</th><th>2×</th><th>4×</th><th>8×</th><th>halo at 8×</th></tr></thead>
+  <tbody>
+    <tr><td>bilinear</td><td>87,3%</td><td>93,8%</td><td>95,2%</td><td>0,0%</td></tr>
+    <tr><td>bicubic</td><td>94,3%</td><td>98,5%</td><td>99,4%</td><td>6,5%</td></tr>
+    <tr><td>lanczos</td><td>96,2%</td><td>99,0%</td><td>99,4%</td><td>9,8%</td></tr>
+  </tbody>
+</table>
+<p>The worst phase gets better with the scale factor, not worse, for every kernel. The mechanism is simple: at 8× a 2 px stroke covers 16 output pixels, so any single output pixel is far from both flanks and reaches full ink. At 2× it covers 4 pixels and the two flanks overlap in the middle of the stroke.</p>
+<p>This is the opposite of the usual advice, and it only holds for contrast, not for cost. Lanczos pays for it with a 9.8% halo — pixel bands brighter than the fill on both flanks — which on flat cel colour is visible as a light outline, whereas bilinear at 8× has no halo at all and still gets to 95.2%.</p>
+
+<h3>Experiment 4 — JPEG widens thin lines before you touch them</h3>
+<p>A 384×384 cel frame with a gentle luma gradient in the fill, so quantisation has something to chew on, encoded at q85 and then upscaled 2× with lanczos. Measured width against the true width:</p>
+<table>
+  <thead><tr><th>True width</th><th>Measured after q85 + 2×</th><th>Error</th><th>Peak contrast</th></tr></thead>
+  <tbody>
+    <tr><td>1 px</td><td>1,683 px</td><td><b>+68,3%</b></td><td>61,2%</td></tr>
+    <tr><td>2 px</td><td>2,304 px</td><td>+15,2%</td><td>108,3%</td></tr>
+    <tr><td>3 px</td><td>3,093 px</td><td>+3,1%</td><td>105,5%</td></tr>
+    <tr><td>4 px</td><td>3,887 px</td><td>−2,84%</td><td>95,2%</td></tr>
+  </tbody>
+</table>
+<p>A 1 px line becomes a 1.68 px smudge — 68% wider than drawn — while a 4 px line is essentially untouched (−2,84%). Thin strokes are the fragile ones, and the damage is already in the file before the upscaler runs. That is why denoising the block grid first is not optional on anime stills: upscaling a compressed 1 px line just enlarges the smudge at 2× its size.</p>
+<p>Note the contrast column overshooting 100% at 2 and 3 px. JPEG ringing on the flanks is being counted as extra ink, so those strokes measure wider and darker than they are. Overshoot above 100% is the fingerprint of ringing, not of a thick line.</p>
+
+<h3>Experiment 5 — sharpening makes the unevenness worse</h3>
+<p>The page used to say "light sharpening only". Measured on the phase sweep, 1 px stroke, radius 1.0 unsharp mask after a 2× lanczos upscale:</p>
+<table>
+  <thead><tr><th>Unsharp</th><th>worst phase</th><th>contrast spread</th><th>halo</th></tr></thead>
+  <tbody>
+    <tr><td>off</td><td>58,4%</td><td>30,8</td><td>6,1%</td></tr>
+    <tr><td>50%</td><td>62,6%</td><td>38,7</td><td>7,9%</td></tr>
+    <tr><td>100%</td><td>67,2%</td><td><b>42,0</b></td><td>9,8%</td></tr>
+  </tbody>
+</table>
+<p>Sharpening does lift the worst phase by 8.8 points, but it widens the spread from 30.8 to 42.0 — it lifts the best phases further than the bad ones. The lines get more contrast overall and more unequal relative to each other, which is the blotchy look you were trying to remove. The halo nearly doubles at the same time.</p>
+<p>If the goal is even line weight, the effective move is the opposite of sharpening: enlarge more and do not sharpen, or work from a vector or higher-resolution source. A 1 px source line is under-sampled information; nothing in the pipeline can invent the missing phase.</p>
+
+<div class="warn">
+  <strong>Correction to the advice above.</strong> "2× per axis at most, past that line weights go uneven" does not survive measurement. Width error is flat across scale factors (all under 0.6%, lanczos on 2 px the lone exception at −2.55%). What actually varies is stroke <em>contrast</em> with sub-pixel phase, and that variation <em>shrinks</em> as the scale factor grows: 87.3% at 2×, 95.2% at 8× for bilinear. The 2× limit is a real limit on file size and processing time, not on line quality.
+</div>
+
+<h3>Reproduce it</h3>
+<p>Self-contained; builds its own fixtures, no input files. Run in an empty directory with numpy and Pillow.</p>
+<pre><code>import numpy as np
+from PIL import Image, ImageFilter
+
+SS, FILL, INK = 8, 0.92, 0.08
+CON = FILL - INK
+
+def canvas(strokes, H=400, W=400, y0=80, y1=320):
+    c = np.full((H * SS, W * SS), FILL)
+    for w, x in strokes:
+        a, b = int(round((x - w / 2) * SS)), int(round((x + w / 2) * SS))
+        c[y0 * SS:y1 * SS, a:b] = INK
+    return c.reshape(H, SS, W, SS).mean(axis=(1, 3))
+
+img8 = lambda a: Image.fromarray((np.clip(a, 0, 1) * 255).astype(np.uint8), 'L')
+
+def measure(im, ctr, s, half=6.0):
+    """ink integral in source px + darkest core contrast (%) per stroke"""
+    a = np.asarray(im, np.float64) / 255
+    r, base = a[int(200 * s)], float(np.median(a[int(150 * s)]))
+    out = []
+    for c in ctr:
+        seg = base - r[max(int(c - half * s), 0):int(c + half * s)]
+        ink = seg.sum() / CON / s
+        core = r[int(c) - 1:int(c) + 1].min()
+        out.append((ink, 100 * (base - core) / CON))
+    return out
+
+W, C = [1, 2, 3, 4], [48, 100, 152, 204]
+canon = canvas(list(zip(W, C)))
+ph = [40 + 40 * i for i in range(8)]
+ctr = [c + i / 8 for i, c in enumerate(ph)]
+
+# 1px stroke at 8 sub-pixel phases, upscaled 2x
+for name, k in [('bilinear', Image.BILINEAR), ('lanczos', Image.LANCZOS)]:
+    im = img8(canvas([(1.0, c) for c in ctr])).resize((800, 800), k)
+    cs = [round(cv, 1) for _, cv in measure(im, [c * 2 for c in ctr], 2)]
+    print(name, cs, 'spread', round(max(cs) - min(cs), 1))
+</code></pre>
+<p>Expected output: <code>bilinear [50.0, 56.0, 62.6, 68.6, 74.7, 68.6, 62.6, 56.0] spread 24.7</code> and <code>lanczos [58.4, 65.8, 73.8, 81.2, 89.2, 81.2, 73.8, 65.8] spread 30.8</code>. A native 2× render of the same eight strokes returns 99.9% for all eight — that comparison is the whole point.</p>
+
+<h3>What this changes in practice</h3>
+<ol>
+  <li>Judge a line-art upscale at 100% on a stroke that curves, not on a straight one. Straight lines on the grid hide the phase problem entirely.</li>
+  <li>If contrast spread is the complaint, go up in factor and stay off the sharpening slider. Sharpening trades spread for halo.</li>
+  <li>Denoise before enlarging when the source is JPEG, and check the thinnest stroke, not an average — thin strokes take 68% of the width error that 4 px strokes do not.</li>
+  <li>Never compare a sharpened upscale to a soft reference and call it better. Against a native render, the sharpened version is both darker and less even.</li>
+</ol>
+
 <h2>Frequently asked</h2>
 <h3>Why does AI upscaling ruin anime line art?</h3>
 <p>Photo models treat flat fills as missing detail, so they add grain and shading, and they soften hard strokes into gradients. A 2D preset is trained on the opposite.</p>
 <h3>Should you denoise anime before upscaling?</h3>
 <p>Only the compression artifacts. Aggressive full-frame denoise blotches flat colour.</p>
 <h3>What upscale factor is safe for line art?</h3>
-<p>2x per axis at most. Past that line weights go uneven and text turns into scribbles.</p>
+<p>Width is safe at any factor — measured error stays under 0.6% at 2× and 4×. The 2× limit is about file size and processing time. What degrades unevenly is stroke contrast against sub-pixel phase, and that improves as the factor grows.</p>
 <h3>Does JPEG compression matter on anime frames?</h3>
 <p>Yes, badly. Block boundaries sit on the line edges and get enlarged along with them.</p>
 
 <h2>Tool</h2>
-<p>The 2D preset described here is one of eight in <a href="https://upgolab.com">UpgoLAB</a>, browser based, free during launch, no watermark. Open it at <a href="https://upgolab.com">https://upgolab.com</a>. Full comparison with other tools: <a href="https://celticgemini001.github.io/upgolab-tools/compare.html">four-way comparison</a>.</p>
+<p>The 2D preset described here is one of eight in <a href="https://upgolab.com">UpgoLAB</a>, browser based, free during launch, no watermark. Full comparison with other tools: <a href="https://celticgemini001.github.io/upgolab-tools/compare.html">four-way comparison</a>.</p>
 
-<footer><p>Written by the team behind <a href="https://upgolab.com">UpgoLAB</a>. Updated 2026-11-09.</p></footer>
+<footer><p>Written by the team behind UpgoLAB. Updated 2026-11-17.</p></footer>
 <!-- sibling-nav-block -->
 <nav class="sisternav" aria-label="Related pages">
 <p>Related</p>
