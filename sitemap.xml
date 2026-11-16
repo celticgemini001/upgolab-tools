@@ -1,24 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://celticgemini001.github.io/upgolab-tools/</loc><lastmod>2026-11-16</lastmod><priority>1.0</priority></url>
-  <url><loc>https://celticgemini001.github.io/upgolab-2k-vs-4k-decision/</loc><lastmod>2026-11-16</lastmod><priority>0.7</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-2k-vs-4k-decision/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
   <url><loc>https://celticgemini001.github.io/upgolab-ai-upscaler-guide/</loc><lastmod>2026-11-16</lastmod><priority>0.9</priority></url>
-  <url><loc>https://celticgemini001.github.io/upgolab-anisotropic-upscale/</loc><lastmod>2026-11-16</lastmod><priority>0.7</priority></url>
-  <url><loc>https://celticgemini001.github.io/upgolab-bit-depth-banding/</loc><lastmod>2026-11-16</lastmod><priority>0.7</priority></url>
-  <url><loc>https://celticgemini001.github.io/upgolab-chroma-subsampling/</loc><lastmod>2026-11-16</lastmod><priority>0.7</priority></url>
-  <url><loc>https://celticgemini001.github.io/upgolab-fractional-upscale-factors/</loc><lastmod>2026-11-16</lastmod><priority>0.7</priority></url>
-  <url><loc>https://celticgemini001.github.io/upgolab-gamma-vs-linear-light/</loc><lastmod>2026-11-16</lastmod><priority>0.7</priority></url>
-  <url><loc>https://celticgemini001.github.io/upgolab-jpeg-blocking-upscale/</loc><lastmod>2026-11-16</lastmod><priority>0.7</priority></url>
-  <url><loc>https://celticgemini001.github.io/upgolab-old-footage-restoration/</loc><lastmod>2026-11-16</lastmod><priority>0.7</priority></url>
-  <url><loc>https://celticgemini001.github.io/upgolab-output-format-after-upscale/</loc><lastmod>2026-11-16</lastmod><priority>0.7</priority></url>
-  <url><loc>https://celticgemini001.github.io/upgolab-remove-background-and-upscale/</loc><lastmod>2026-11-16</lastmod><priority>0.7</priority></url>
-  <url><loc>https://celticgemini001.github.io/upgolab-screen-recording-4k/</loc><lastmod>2026-11-16</lastmod><priority>0.7</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-anisotropic-upscale/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-bit-depth-banding/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-chroma-subsampling/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-fractional-upscale-factors/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-gamma-vs-linear-light/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-jpeg-blocking-upscale/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-noise-and-grain-upscaling/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-old-footage-restoration/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-output-format-after-upscale/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-remove-background-and-upscale/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-screen-recording-4k/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
   <url><loc>https://celticgemini001.github.io/upgolab-sharpen-before-or-after-upscale/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
-  <url><loc>https://celticgemini001.github.io/upgolab-thumbnail-4k-master/</loc><lastmod>2026-11-16</lastmod><priority>0.7</priority></url>
-  <url><loc>https://celticgemini001.github.io/upgolab-tiled-upscale-seams/</loc><lastmod>2026-11-16</lastmod><priority>0.9</priority></url>
-  <url><loc>https://celticgemini001.github.io/upgolab-upscale-anime-illustration/</loc><lastmod>2026-11-16</lastmod><priority>0.7</priority></url>
-  <url><loc>https://celticgemini001.github.io/upgolab-upscale-product-photos/</loc><lastmod>2026-11-16</lastmod><priority>0.7</priority></url>
-  <url><loc>https://celticgemini001.github.io/upgolab-upscale-vs-reshoot/</loc><lastmod>2026-11-16</lastmod><priority>0.9</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-thumbnail-4k-master/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-tiled-upscale-seams/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-tools/</loc><lastmod>2026-11-16</lastmod><priority>1.0</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-upscale-anime-illustration/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-upscale-product-photos/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-upscale-vs-reshoot/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
   <url><loc>https://celticgemini001.github.io/upgolab-video-upscaling-limits/</loc><lastmod>2026-11-16</lastmod><priority>0.9</priority></url>
-  <url><loc>https://celticgemini001.github.io/upgolab-what-nofollow-means/</loc><lastmod>2026-11-16</lastmod><priority>0.7</priority></url>
+  <url><loc>https://celticgemini001.github.io/upgolab-what-nofollow-means/</loc><lastmod>2026-11-16</lastmod><priority>0.8</priority></url>
 </urlset>

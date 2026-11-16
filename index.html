@@ -443,6 +443,15 @@ seconds rather than a render queue.</p>
 
 <h2>Method notes</h2>
 
+<a class="card" href="/upgolab-noise-and-grain-upscaling/">
+  <h3>Noise and Grain Under Upscaling: Amplitude Down, Clumping Up</h3>
+  <p>Upscaling does not amplify noise — bilinear cuts its amplitude to 0.66x. What it does
+  is concentrate the remainder into clumps 2.6x wider than the source pixels, and
+  denoising before the upscale loses in 12/12 cases until the frame is above sigma 3.</p>
+  <span class="metric">gain 0.66–0.89x · clump 2.62 px · pre-denoise wins 0/12 below σ 3</span>
+</a>
+
+
 <ul>
   <li><strong>HF retention</strong> — ratio of 2-D FFT magnitude outside a radius of
   0.18 × image width to the magnitude inside it. Not a standard metric; built because PSNR
@@ -458,7 +467,7 @@ seconds rather than a render queue.</p>
 
 <footer>
 Published by <a href="https://upgolab.com">UpgoLAB</a> — AI photo and short-video upscaling
-in the browser. Index of twenty measured guides; scripts reproducible with ffmpeg and numpy.
+in the browser. Index of twenty-one measured guides; scripts reproducible with ffmpeg and numpy.
 
 <style>
 .sisternav{margin:2rem 0 0;padding-top:1.2rem;border-top:1px solid #e2e5ea}
@@ -473,6 +482,7 @@ in the browser. Index of twenty measured guides; scripts reproducible with ffmpe
 <nav class="sisternav" aria-label="More measured upscaling guides">
 <p>More measured guides</p>
 <ul>
+  <li><a href="https://celticgemini001.github.io/upgolab-noise-and-grain-upscaling/">Noise and grain under upscaling</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-ai-upscaler-guide/">What upscaling recovers vs invents</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-video-upscaling-limits/">Why video isn't image upscaling</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-upscale-product-photos/">Product shot vs face</a></li>
