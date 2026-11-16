@@ -443,6 +443,15 @@ seconds rather than a render queue.</p>
 
 <h2>Method notes</h2>
 
+<a class="card" href="/upgolab-halftone-dots-upscaling/">
+  <h3>Halftone Dots Under Upscaling: The Lattice Scales Exactly</h3>
+  <p>A screened print's dot lattice scales with the scale factor to within 0.56%, but killing
+  the dots with a Gaussian costs an edge blur of 1.1-1.3x the dot pitch. Nearest-neighbour
+  clumps 3.2x worse at fractional factors, and below 2 output pixels per cell the dots simply
+  stop existing.</p>
+  <span class="metric">pitch error 0.56% · descreen cost 1.1-1.3p · dots vanish under 2 px/cell</span>
+</a>
+
 <a class="card" href="/upgolab-noise-and-grain-upscaling/">
   <h3>Noise and Grain Under Upscaling: Amplitude Down, Clumping Up</h3>
   <p>Upscaling does not amplify noise — bilinear cuts its amplitude to 0.66x. What it does
@@ -467,7 +476,7 @@ seconds rather than a render queue.</p>
 
 <footer>
 Published by <a href="https://upgolab.com">UpgoLAB</a> — AI photo and short-video upscaling
-in the browser. Index of twenty-one measured guides; scripts reproducible with ffmpeg and numpy.
+in the browser. Index of twenty-four measured guides; scripts reproducible with ffmpeg and numpy.
 
 <style>
 .sisternav{margin:2rem 0 0;padding-top:1.2rem;border-top:1px solid #e2e5ea}
@@ -483,6 +492,7 @@ in the browser. Index of twenty-one measured guides; scripts reproducible with f
 <p>More measured guides</p>
 <ul>
   <li><a href="https://celticgemini001.github.io/upgolab-motion-blur-before-upscale/">Motion blur before upscaling</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-halftone-dots-upscaling/">Halftone dots from print</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-noise-and-grain-upscaling/">Noise and grain under upscaling</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-ai-upscaler-guide/">What upscaling recovers vs invents</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-video-upscaling-limits/">Why video isn't image upscaling</a></li>
