@@ -48,6 +48,15 @@ code{background:#f2f5fa;padding:.1rem .3rem;border-radius:4px;
 footer{margin-top:4rem;padding-top:1.4rem;border-top:1px solid var(--line);
  font-size:.9rem;color:var(--mut)}
 </style>
+<style>
+.sisternav{margin:2rem 0 0;padding-top:1.2rem;border-top:1px solid #e2e5ea}
+.sisternav p{font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;
+ color:#5b6270;margin:0 0 .6rem}
+.sisternav ul{list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:.4rem .9rem}
+.sisternav li{margin:0;font-size:.88rem;line-height:1.4}
+.sisternav a{text-decoration:none;border-bottom:1px solid #d5dae2}
+.sisternav a:hover{border-bottom-color:#0a58ca}
+</style>
 </head>
 <body>
 <main>
@@ -71,8 +80,8 @@ retention. On a 4× upscale of a Siemens-star test pattern:</p>
 </tbody>
 </table>
 
-<p>At 2× instead of 4×, Lanczos retains 21.5% instead of 1.3%. <strong>Halving the scale
-factor gains roughly 16× more surviving detail — far more than any choice of kernel.</strong>
+<p>At 2× instead of 4×, Lanczos retains 21.5% instead of 1.3%. <a href="https://celticgemini001.github.io/">Halving the scale
+factor gains roughly 16× more surviving detail</a> — far more than any choice of kernel.
 That single fact reframes most upscaling decisions.</p>
 
 <h2>Guides</h2>
@@ -485,16 +494,6 @@ seconds rather than a render queue.</p>
 <footer>
 Published by <a href="https://upgolab.com">UpgoLAB</a> — AI photo and short-video upscaling
 in the browser. Index of twenty-four measured guides; scripts reproducible with ffmpeg and numpy.
-
-<style>
-.sisternav{margin:2rem 0 0;padding-top:1.2rem;border-top:1px solid #e2e5ea}
-.sisternav p{font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;
- color:#5b6270;margin:0 0 .6rem}
-.sisternav ul{list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:.4rem .9rem}
-.sisternav li{margin:0;font-size:.88rem;line-height:1.4}
-.sisternav a{text-decoration:none;border-bottom:1px solid #d5dae2}
-.sisternav a:hover{border-bottom-color:#0a58ca}
-</style>
 
 <nav class="sisternav" aria-label="More measured upscaling guides">
 <p>More measured guides</p>
