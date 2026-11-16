@@ -248,11 +248,19 @@ five files fall monotonically: 32.23 → 31.75 → 31.38 → 31.11 → 30.91 dB.
 
 <p>Both series are correct; they answer different questions. Each encode converges toward the
 "easy to encode" version of the input, so the step size shrinks — that is what PSNR-vs-previous
-measures. What the viewer sees is distance from the original, which grows. The source had HF
-energy 65.60 dB; after five generations it is 60.42 dB, so 1.99 dB of fine detail is gone while
-the file got 32.4% smaller. If you evaluate denoise or upscale settings by comparing to the
-previous step, you will systematically pick the setting that destroys the most detail — because
-destruction is what makes the next step cheap. Always keep an untouched copy as the reference.</p>
+measures. What the viewer sees is distance from the original, which grows. Two baselines are
+worth keeping apart, because I conflated them myself on the first pass:</p>
+<ul>
+  <li><strong>Source to generation 5:</strong> HF energy 65.60 → 60.42 dB, so <strong>5.18 dB</strong>
+      of fine detail is gone. That is the real cost against what you started with.</li>
+  <li><strong>Generation 1 to generation 5:</strong> 62.41 → 60.42 dB, i.e. <strong>1.99 dB</strong>,
+      while the file shrank 32.4% (1,357,687 → 918,020 bytes). That is the cost of four
+      <em>extra</em> rounds on top of the first re-encode — and it is the number that flatters
+      the process, because generation 1 already did most of the damage.</li>
+</ul>
+<p>If you evaluate denoise or upscale settings by comparing to the previous step, you will
+systematically pick the setting that destroys the most detail — because destruction is what makes
+the next step cheap. Always keep an untouched copy as the reference.</p>
 
 <h3>Reproduce it</h3>
 <p>Self-contained: builds the fixture, makes both cuts, then prints which source frames
