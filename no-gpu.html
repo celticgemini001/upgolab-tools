@@ -50,6 +50,14 @@
         "@type": "Answer",
         "text": "No. The phone only uploads and downloads. Processing happens on the server at full resolution, so the result is the same as from a desktop browser."
       }
+    },
+    {
+      "@type": "Question",
+      "name": "Is splitting a video with -c copy really lossless and frame-exact?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Lossless yes, frame-exact no. Measured over five cut points, input seeking (-ss before -i) overshot the tail by 2 to 3 frames every time, and output seeking (-ss after -i) dropped 2 to 7 frames from the head, once delivering 20 frames instead of 25. Two of five cuts in each mode also contained one duplicated and one missing frame. The segment muxer is the exception: splitting into keyframe-aligned chunks and rejoining gave back all 300 frames bit-identical."
+      }
     }
   ]
 }
@@ -118,7 +126,183 @@
 <p>Rejoin without a second encode:</p>
 <pre><code>printf "file '%s'\n" seg-*.mp4 &gt; list.txt
 ffmpeg -f concat -safe 0 -i list.txt -c output.mp4</code></pre>
-<p>The seam is invisible when you cut on keyframes, because no frame is regenerated at the join.</p>
+
+<div class="warn">
+  <strong>Correction, measured below.</strong> The claim that "the seam is invisible because no
+  frame is regenerated" is only true for the segment-muxer path. A single hand-placed
+  <code>-ss/-to</code> cut is <em>not</em> frame-exact: it overshoots the tail by 2–3 frames,
+  and in 2 of 5 tested cut points it duplicated one frame and dropped another. It also produced
+  <em>larger</em> files per frame than a CRF 18 re-encode. Numbers in the next section.
+</div>
+
+<h2>Measured: what a stream copy actually does to your frames</h2>
+<p>Stream copy is the standard advice for splitting a file under an upload cap, and nobody
+usually checks whether the frames that come out are the frames that went in. So I built a
+fixture where frame identity is readable after compression: 300 frames at 25 fps, 320×180,
+each carrying its own index as a 9-bit black/white patch in the top-left corner. The patch
+survives H.264 because its blocks are flat, so after decoding I can read back exactly which
+source frame each output frame came from — not estimate it, read it.</p>
+<p>The source was encoded with libx264 at CRF 18, <code>-g 60</code>, which in practice
+produced 23 I-frames over 300 frames (one every ~13 frames). Reading all 300 frames back gave
+300 unique, strictly increasing indices — the fixture is self-consistent, so any anomaly
+afterwards belongs to the cut, not to the measurement.</p>
+
+<h3>The cut is not frame-exact, in both directions</h3>
+<p>Five cut points, each run twice: <code>-ss</code> <em>before</em> <code>-i</code> (input
+seeking) and <code>-ss</code> <em>after</em> <code>-i</code> (output seeking). A 1.00 s window
+at 25 fps should yield 25 frames. Head and tail error are in frames.</p>
+
+<table>
+  <thead><tr><th>Cut</th><th>Want</th><th>Before -i</th><th>head / tail</th><th>After -i</th><th>head / tail</th></tr></thead>
+  <tbody>
+    <tr><td>0.5 – 1.5 s</td><td>25</td><td>27</td><td>0 / +2</td><td>24</td><td>+3 / +2</td></tr>
+    <tr><td>1.0 – 2.0 s</td><td>25</td><td>27</td><td>0 / +2</td><td><strong>20</strong></td><td>+7 / +2</td></tr>
+    <tr><td>2.0 – 3.0 s</td><td>25</td><td>27</td><td>0 / +2</td><td>25</td><td>+2 / +2</td></tr>
+    <tr><td>2.4 – 3.4 s</td><td>25</td><td>28</td><td>0 / +3</td><td>22</td><td>+6 / +3</td></tr>
+    <tr><td>5.0 – 6.0 s</td><td>25</td><td>28</td><td>0 / +3</td><td>25</td><td>+3 / +3</td></tr>
+  </tbody>
+</table>
+
+<p>Input seeking never lost the head — it starts on the nearest keyframe at or before the
+requested time — but it overshot the tail by 2–3 frames on all five cuts, which is 8–12% more
+frames than asked for. Output seeking did the opposite: it dropped 2–7 frames off the front,
+and in the worst case (1.0 s in, 1.0 s window) delivered 20 frames instead of 25 — a 20%
+shortfall with no error message and exit code 0.</p>
+<p>Worse than a length error: in 2 of 5 cuts in <em>each</em> mode, the output contained one
+duplicated frame and one missing frame. At the 2.4 s cut the last two frames decode to
+identical indices. The bit-flags in that frame were unambiguous (block means 234.0 vs 12.0, no
+value anywhere near the 128 threshold), and the two decoded frames are byte-identical — so
+this is a real repeated frame, not a misread patch. If you are cutting a clip to a musical
+beat or a specific cue, that is the frame that slips.</p>
+
+<h3>Stream copy cost more bytes per frame than re-encoding</h3>
+<p>The reason given for copying is always "no generation loss". Noise-free, yes. Cheaper, no.
+Measured on this fixture:</p>
+
+<table>
+  <thead><tr><th>Path</th><th>Frames</th><th>Bytes</th><th>Bytes / frame</th></tr></thead>
+  <tbody>
+    <tr><td>Source (CRF 18, 300 frames)</td><td>300</td><td>3,842,297</td><td>12,808</td></tr>
+    <tr><td>Stream copy, 1.0–2.0 s</td><td>27</td><td>465,352</td><td><strong>17,235</strong></td></tr>
+    <tr><td>Re-encode, CRF 18, 1.0–2.0 s</td><td>25</td><td>302,107</td><td><strong>12,084</strong></td></tr>
+  </tbody>
+</table>
+
+<p>The copy cut costs 43% more per frame than re-encoding at CRF 18 — because it carries an
+extra frame, and because the segment it copies still contains the keyframe it started on plus
+the dependent frames that follow. The re-encode was also exact: 25 frames, indices 25 through
+49, no gaps, no duplicates, 41.51 dB PSNR against the source. At CRF 18 on real footage that
+quality loss is not visible; on a 30 second clip it is also not slow.</p>
+
+<p>Which is the point: when the cap is a hard upload limit, the thing you want to minimise is
+<em>bytes that fit</em>, not "encodes performed". A re-encode at a sane CRF wins on size, on
+frame accuracy, and on length predictability at the same time.</p>
+
+<h3>The segment muxer is the exception — that path really is lossless</h3>
+<p>The batch-split-then-concat recipe does hold up, and I want to be precise about why, since
+the section above sounds like it contradicts it. Splitting into 2-second chunks and rejoining
+gave back exactly 300 frames with 0 missing, 0 duplicated, and PSNR 99.0 (i.e. bit-identical)
+against the source for all 300 frames. Total size grew 0.1%.</p>
+
+<table>
+  <thead><tr><th>Segment</th><th>Frames</th><th>First idx</th><th>Last idx</th></tr></thead>
+  <tbody>
+    <tr><td>seg_000</td><td>52</td><td>0</td><td>51</td></tr>
+    <tr><td>seg_001</td><td>52</td><td>52</td><td>103</td></tr>
+    <tr><td>seg_002</td><td>52</td><td>104</td><td>155</td></tr>
+    <tr><td>seg_003</td><td>71</td><td>156</td><td>226</td></tr>
+    <tr><td>seg_004</td><td>59</td><td>227</td><td>285</td></tr>
+    <tr><td>seg_005</td><td>14</td><td>286</td><td>299</td></tr>
+  </tbody>
+</table>
+
+<p>Note the chunk sizes: a nominal 2-second segment holds 52, 52, 52, 71, 59 and 14 frames, not
+50 each. The muxer snaps chunk boundaries to keyframes, so segment length is "at least
+<code>segment_time</code>", never exactly it. If a platform counts frames or enforces a hard
+per-file length, budget for that overshoot instead of trusting the number you passed in.</p>
+
+<div class="note">
+  <strong>Rule of thumb from the measurements.</strong> Splitting a long file at keyframes and
+  rejoining: safe, bit-identical. Placing a single cut with <code>-ss/-to -c copy</code> to hit
+  an exact time: not safe, expect 2–3 extra frames at the tail, up to 7 missing at the head,
+  and an occasional duplicated frame. If the cut has to be exact, re-encode it.
+</div>
+
+<h3>And a trap: measuring re-encode loss against the previous generation</h3>
+<p>While checking how much a re-encode costs, I chained five CRF 23 re-encodes of the same file
+and measured PSNR after each. Measured against the immediately previous generation, quality
+<em>improved</em> every round — 32.23 → 40.32 → 41.36 → 42.19 → 43.50 dB. That reads like
+"re-encoding makes it better", which is nonsense. Measured against the original source, the same
+five files fall monotonically: 32.23 → 31.75 → 31.38 → 31.11 → 30.91 dB.</p>
+
+<table>
+  <thead><tr><th>Generation</th><th>PSNR vs previous</th><th>PSNR vs source</th><th>HF energy</th><th>Bytes</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>32.23</td><td>32.23</td><td>62.41 dB</td><td>1,357,687</td></tr>
+    <tr><td>2</td><td>40.32</td><td>31.75</td><td>61.54 dB</td><td>1,232,486</td></tr>
+    <tr><td>3</td><td>41.36</td><td>31.38</td><td>61.07 dB</td><td>1,108,860</td></tr>
+    <tr><td>4</td><td>42.19</td><td>31.11</td><td>60.70 dB</td><td>999,604</td></tr>
+    <tr><td>5</td><td>43.50</td><td>30.91</td><td>60.42 dB</td><td>918,020</td></tr>
+  </tbody>
+</table>
+
+<p>Both series are correct; they answer different questions. Each encode converges toward the
+"easy to encode" version of the input, so the step size shrinks — that is what PSNR-vs-previous
+measures. What the viewer sees is distance from the original, which grows. The source had HF
+energy 65.60 dB; after five generations it is 60.42 dB, so 1.99 dB of fine detail is gone while
+the file got 32.4% smaller. If you evaluate denoise or upscale settings by comparing to the
+previous step, you will systematically pick the setting that destroys the most detail — because
+destruction is what makes the next step cheap. Always keep an untouched copy as the reference.</p>
+
+<h3>Reproduce it</h3>
+<p>Self-contained: builds the fixture, makes both cuts, then prints which source frames
+survived. On ffmpeg 6.1.1 this prints <code>n=27 first=25 last=51</code> and
+<code>n=20 first=32 last=51</code> for the two modes.</p>
+<pre><code>import numpy as np, subprocess
+
+W, H, N, BLK = 320, 180, 300, 20          # 300 frames, 9-bit index patch
+
+def frame(i):
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    cx = W * (0.3 + 0.4 * i / N)                       # slow pan
+    r = np.sqrt((xx - cx) ** 2 + (yy - H * 0.5) ** 2)
+    g = np.clip(90 + 90 * np.exp(-(r / 90) ** 2)
+                + np.random.default_rng(i).normal(0, 9, (H, W)), 0, 255)
+    img = np.stack([g.astype(np.uint8)] * 3, -1)
+    for b in range(9):                                  # index as black/white bits
+        x0 = 2 + b * (BLK + 1)
+        img[2:2 + BLK, x0:x0 + BLK] = 235 if (i >> b) &amp; 1 else 12
+    return img
+
+enc = subprocess.Popen(["ffmpeg", "-y", "-v", "error", "-f", "rawvideo",
+                        "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", "25", "-i", "-",
+                        "-c:v", "libx264", "-crf", "18", "-g", "60", "src.mp4"],
+                       stdin=subprocess.PIPE)
+for i in range(N):
+    enc.stdin.write(frame(i).tobytes())
+enc.stdin.close(); enc.wait()
+
+for tag, args in {"before-i": ["-ss", "1.0", "-to", "2.0", "-i", "src.mp4"],
+                  "after-i":  ["-i", "src.mp4", "-ss", "1.0", "-to", "2.0"]}.items():
+    subprocess.run(["ffmpeg", "-y", "-v", "error"] + args + ["-c", "copy", f"{tag}.mp4"],
+                   check=True)
+
+def read(p):                                            # which source frames survived
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", p, "-f", "rawvideo",
+                          "-pix_fmt", "gray", "-"], capture_output=True).stdout
+    out = []
+    for f in np.frombuffer(raw, np.uint8).reshape(-1, H, W):
+        bits = 0
+        for b in range(9):
+            x0 = 2 + b * (BLK + 1)
+            if f[6:18, x0 + 4:x0 + 16].mean() &gt; 128:
+                bits |= 1 &lt;&lt; b
+        out.append(bits)
+    return out
+
+for tag in ("before-i", "after-i"):                     # want 25 frames, 25..49
+    ids = read(f"{tag}.mp4")
+    print(f"{tag:9s} n={len(ids):2d} first={ids[0]:2d} last={ids[-1]:2d}")</code></pre>
 
 <h2>Order still beats hardware</h2>
 <p>A better GPU does not fix wrong ordering. Enlarging first teaches the model the compression blocks and enlarges them too. Do it this way instead:</p>
@@ -174,12 +358,12 @@ ffmpeg -f concat -safe 0 -i list.txt -c output.mp4</code></pre>
 <p>No. The phone only uploads and downloads; processing happens at full resolution on the server.</p>
 
 <h2>Where to run it</h2>
-<p><a href="https://upgolab.com">UpgoLAB</a> is the cloud option described here — eight presets by damage type, free during launch, no card, no watermark. Open it at <a href="https://upgolab.com">https://upgolab.com</a> and drop a file.</p>
+<p><a href="https://upgolab.com">UpgoLAB</a> is the cloud option described here — eight presets by damage type, free during launch, no card, no watermark. Drop a file and it runs on a remote GPU, so the hardware section above is somebody else's problem.</p>
 
 <p>If you do own a GPU and need longer files: <a href="https://celticgemini001.github.io/upgolab-tools/compare.html">comparison with Video2X, Upscayl and Topaz</a>. What is actually fixable in a blurry clip: <a href="https://celticgemini001.github.io/upgolab-tools/blurry-video.html">blurry video guide</a>.</p>
 
 <footer>
-  <p>Written by the team behind <a href="https://upgolab.com">UpgoLAB</a>. Corrections welcome. Updated 2026-11-09.</p>
+  <p>Written by the team behind UpgoLAB. Corrections welcome. Updated 2026-11-17.</p>
 </footer>
 
 <!-- sibling-nav-block -->
