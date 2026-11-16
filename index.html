@@ -144,6 +144,15 @@ That single fact reframes most upscaling decisions.</p>
   <span class="metric">alpha band 1px → 2px</span>
 </a>
 
+<a class="card" href="/upgolab-output-format-after-upscale/">
+  <h3>Output Format After Upscaling: What JPEG, WebP and AVIF Do to the Detail You Just Bought</h3>
+  <p>Compared at equal file size rather than equal "quality": AVIF beats JPEG by 3.284 dB for the
+  same 400 KB. But every encoder <em>adds</em> high-frequency energy in flat regions (232–277% of
+  the source), and JPEG alone reaches a byte-identical fixed point after 29 generations while WebP
+  and AVIF never converge.</p>
+  <span class="metric">AVIF −3.284 dB vs JPEG · flat-band artefacts 277%</span>
+</a>
+
 <a class="card" href="/upgolab-chroma-subsampling/">
   <h3>Chroma Subsampling Before You Upscale: What 4:2:0 Costs</h3>
   <p>A 4:2:0 source has already lost a channel. Measured: luma bit-identical, chroma down
@@ -241,9 +250,19 @@ That single fact reframes most upscaling decisions.</p>
   <span class="metric">−60 cv in gamma · winner flips with the metric</span>
 </a>
 
+<a class="card" href="/upgolab-sharpen-before-or-after-upscale/">
+  <h3>Sharpen Before or After Upscaling? The Order Survives Float, Not a File</h3>
+  <p>The two orders are <strong>the same operation</strong> in float — matched radius, 0.002 dB
+  apart. They only diverge when a quantiser sits between them: one 8-bit step costs 0.138 dB,
+  a JPEG intermediate costs up to 0.549 dB, and a linear-light resampler breaks the equivalence
+  on its own terms. Sharpening after wins 12/12 across four photographs at 2×, 3× and 4×, but by
+  only 0.100 dB — and pre-sharpening is <em>better</em> on flat regions.</p>
+  <span class="metric">0.002 dB in float · 12/12 favour "after" · 1.80× faster "before"</span>
+</a>
+
 <h2>Which knob actually decides whether detail survives?</h2>
 
-<p>The sixteen guides above each change one thing at a time. That is fine for explaining a mechanism and
+<p>The guides above each change one thing at a time. That is fine for explaining a mechanism and
 useless for ranking causes, because the knobs interact. So the next test ran a full factorial:
 <strong>3 scale factors × 3 kernels × 4 content classes = 36 cells</strong>, on 1024×1024 sources.
 Each source was downscaled with a box filter (no ringing introduced before the test), then
@@ -439,7 +458,7 @@ seconds rather than a render queue.</p>
 
 <footer>
 Published by <a href="https://upgolab.com">UpgoLAB</a> — AI photo and short-video upscaling
-in the browser. Index of seventeen measured guides; scripts reproducible with ffmpeg and numpy.
+in the browser. Index of twenty measured guides; scripts reproducible with ffmpeg and numpy.
 
 <style>
 .sisternav{margin:2rem 0 0;padding-top:1.2rem;border-top:1px solid #e2e5ea}
@@ -473,6 +492,7 @@ in the browser. Index of seventeen measured guides; scripts reproducible with ff
   <li><a href="https://celticgemini001.github.io/upgolab-fractional-upscale-factors/">Fractional upscale factors</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-chroma-subsampling/">Chroma subsampling 4:2:0</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-output-format-after-upscale/">Output format after upscaling</a></li>
+  <li><a href="https://celticgemini001.github.io/upgolab-sharpen-before-or-after-upscale/">Sharpen before vs after upscaling</a></li>
 </ul>
 </nav>
 </footer>
