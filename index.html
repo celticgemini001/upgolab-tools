@@ -459,6 +459,14 @@ seconds rather than a render queue.</p>
   denoising before the upscale loses in 12/12 cases until the frame is above sigma 3.</p>
   <span class="metric">gain 0.66–0.89x · clump 2.62 px · pre-denoise wins 0/12 below σ 3</span>
 </a>
+<a class="card" href="/upgolab-hdr-upscaling-bit-depth/">
+  <h3>HDR Upscaling: What 16-bit Actually Buys You</h3>
+  <p>A known ripple through 4× down and 4× up, quantised to 8 and 16 bits. Detail survives at
+  100% in 16-bit and 0% in 8-bit above display code 253 — and the two are identical after a +2
+  stop lift. Grading before the tone map beats both.</p>
+  <span class="metric">0% vs 100% above code 253 · 0.00 dB at +2 stops · 19.49 stops in 8-bit</span>
+</a>
+
 
 
 <ul>
@@ -491,6 +499,7 @@ in the browser. Index of twenty-four measured guides; scripts reproducible with 
 <nav class="sisternav" aria-label="More measured upscaling guides">
 <p>More measured guides</p>
 <ul>
+  <li><a href="https://celticgemini001.github.io/upgolab-hdr-upscaling-bit-depth/">HDR: 8-bit vs 16-bit measured</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-motion-blur-before-upscale/">Motion blur before upscaling</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-halftone-dots-upscaling/">Halftone dots from print</a></li>
   <li><a href="https://celticgemini001.github.io/upgolab-noise-and-grain-upscaling/">Noise and grain under upscaling</a></li>
