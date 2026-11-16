@@ -476,6 +476,15 @@ seconds rather than a render queue.</p>
   <span class="metric">0% vs 100% above code 253 · 0.00 dB at +2 stops · 19.49 stops in 8-bit</span>
 </a>
 
+<a class="card" href="/upgolab-exif-orientation-upscale/">
+  <h3>EXIF Orientation and Upscale Order: All 8 Tags Are Lossless</h3>
+  <p>Every EXIF orientation value is an exact pixel permutation — 0.00% of pixels change — so
+  rotating before or after an upscale costs nothing. Upscale-first still won 0.73-0.89 dB at odd
+  angles. The damage comes from elsewhere: ffmpeg autorotate plus a hardcoded output size gave a
+  55.6% aspect error, and <code>-noautorotate</code> silently lost 12.6 dB.</p>
+  <span class="metric">8/8 tags bit-exact · +0.73–0.89 dB · 55.6% AR error · 12.6 dB loss</span>
+</a>
+
 
 
 <ul>
