@@ -37,6 +37,14 @@
     },
     {
       "@type": "Question",
+      "name": "How can you tell which cause of blur you are looking at?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Measure rather than look. Noise sigma separates a low-light frame by two orders of magnitude, gradient anisotropy below 1 reveals horizontal motion, and block-step energy at the grid period reveals compression within a single frame. A single edge inspected by eye ranks the causes correctly on average but its spread overlaps between causes, so it is not a reliable diagnosis on one frame."
+      }
+    },
+    {
+      "@type": "Question",
       "name": "How do you remove compression blocks from a video?",
       "acceptedAnswer": {
         "@type": "Answer",
@@ -107,6 +115,7 @@
   <li>Look at a hard edge — a hairline, a text stroke, a window frame.</li>
 </ol>
 <p>Structure present means it can probably be sharpened. No structure at all means it is focus blur, and no tool will invent the real detail back. Stop there and save the time.</p>
+<p>One caveat, measured further down: a single edge is a sample of one. It ranks the causes correctly on average and it does not reliably separate them on one frame. If the decision matters, measure a dozen edges and take the median rather than trusting the one that happens to be in view.</p>
 
 <div class="warn">
   <strong>The most common wasted hour:</strong> running three different upscalers on footage that was simply out of focus, then comparing them. They will all produce the same softened result because the information is not in the file.
@@ -157,6 +166,155 @@ ffmpeg -f concat -safe 0 -i list.txt -c output.mp4</code></pre>
   <figcaption>True Texture — damage in the surface rather than the subject.</figcaption>
 </figure>
 
+<h2>Measured: can you actually tell these four apart?</h2>
+<p>The table above says what to do for each cause. It never says how to find out which cause you are looking at, and that is where the wasted hour goes. So I built the four cases to specification and asked a narrower question: from the damaged frame alone, with no clean original to compare against, can a single number say which of the four you have?</p>
+<p>Setup: a 1080&times;608 frame cropped from a real 1080&times;1620 photograph, three different crops of it, plus a synthetic test card. The source is each frame at 540&times;304, which is what a 540p clip gives you. Damage is applied at source resolution because that is where capture damage lives, then the frame is enlarged to 1080 with Lanczos and compared against the untouched original. Four contents, because a metric that only separates the causes on one image has separated nothing.</p>
+<h3>Four metrics, five states</h3>
+<table>
+  <thead><tr><th>State</th><th>Block-step, period 8</th><th>Anisotropy (x / y gradient)</th><th>Relative HF energy</th><th>Noise sigma, levels</th></tr></thead>
+  <tbody>
+    <tr><td>clean 540p</td><td>0.893&ndash;1.278</td><td>0.77&ndash;1.71</td><td>0.005&ndash;0.009</td><td>0.00&ndash;0.66</td></tr>
+    <tr><td>x264, crf 40</td><td>1.287&ndash;1.797</td><td>0.95&ndash;3.16</td><td>0.004&ndash;0.008</td><td>0.00&ndash;0.17</td></tr>
+    <tr><td>photon noise only</td><td>0.958&ndash;1.066</td><td>0.89&ndash;1.42</td><td>0.009&ndash;0.014</td><td>3.05&ndash;4.78</td></tr>
+    <tr><td>horizontal motion, 15 px</td><td>0.870&ndash;1.063</td><td>0.17&ndash;0.69</td><td>0.002&ndash;0.005</td><td>0.00&ndash;0.17</td></tr>
+    <tr><td>defocus, sigma 3</td><td>0.990&ndash;1.020</td><td>1.17&ndash;2.77</td><td>0.001&ndash;0.004</td><td>0.00&ndash;0.17</td></tr>
+  </tbody>
+</table>
+<p><strong>Noise sigma is the only clean classifier.</strong> 3.05&ndash;4.78 levels for the noisy frame, 0.66 or less for every other state on every content &mdash; a margin of 5&times; that needs no threshold tuning. It is also the only metric that <em>falls</em> under compression: 0.00&ndash;0.17 against 0.00&ndash;0.66 clean, because a codec discards the smallest variations and the estimator reads that as less grain. So a denoiser applied to an already-compressed clip is working on a frame that is partly denoised already.</p>
+<p><strong>Anisotropy finds horizontal motion, with a thin margin.</strong> Motion sits at 0.17&ndash;0.69; clean and defocused never go below 0.77. The direction matters: motion along x lowers the x/y ratio below 1, so the signature is the ratio falling. Getting that backwards is the easy mistake. The margin is real but not generous &mdash; worst motion 0.69 against the least anisotropic clean frame at 0.77, a gap of 10&nbsp;%. A fixed threshold works here, and it works because the two clusters happen not to touch on these four frames.</p>
+<p><strong>Block-step energy finds compression within a frame and fails between frames.</strong> Within one content it is unmistakable: 0.920 clean becomes 1.287 compressed, a 40&nbsp;% jump. Across contents the compressed range starts at 1.287 and the clean range ends at 1.278. Those two clusters miss each other by 0.7&nbsp;%, which is not a separation, it is a coincidence. The reason is structural: a photographic frame with fine vertical detail every eighth column produces a high reading with no compression at all, and that is exactly what the synthetic card does clean (1.278, higher than three of the four compressed photo crops).</p>
+<p>That limitation matters for everything below, so state it precisely. Block-step energy is reliable <em>within</em> one frame and unreliable <em>between</em> frames. It cannot tell you what is wrong with a clip you have never seen, which is the job it would need to do. It can tell you whether a filter removed a grid from a frame you already know is gridded, and that is a smaller and still useful job.</p>
+<p><strong>Relative HF energy is worse than useless: it inverts.</strong> Defocus 0.001&ndash;0.004 against compression 0.004&ndash;0.008, overlapping, and the defocused lower crop (0.0042) reads as having <em>more</em> high-frequency energy than the compressed centre crop (0.0037). Motion spans 0.002&ndash;0.005, straddling both. This is the first quantity anyone reaches for and it answers "is this frame soft", not "why is it soft".</p>
+<h3>The advice on this page, turned into a measurement</h3>
+<p>The page says: pull a frame, view at 100&nbsp;%, look at a hard edge &mdash; structure present means it can probably be sharpened. That is a width measurement, so I made it one: equivalent edge width, step height divided by peak first difference, measured on the same edges before and after damage so the content cancels.</p>
+<table>
+  <thead><tr><th>State</th><th>x width / clean</th><th>y width / clean</th><th>median x</th></tr></thead>
+  <tbody>
+    <tr><td>clean</td><td>1.00</td><td>1.00</td><td>1.00</td></tr>
+    <tr><td>x264, crf 40</td><td>0.95&ndash;1.52</td><td>1.12&ndash;1.47</td><td>1.23</td></tr>
+    <tr><td>defocus, sigma 1</td><td>1.27&ndash;1.84</td><td>1.18&ndash;1.56</td><td>1.31</td></tr>
+    <tr><td>defocus, sigma 3</td><td>2.04&ndash;2.62</td><td>1.67&ndash;3.03</td><td>2.47</td></tr>
+    <tr><td>horizontal motion, 15 px</td><td>2.50&ndash;3.40</td><td>1.21&ndash;1.58</td><td>2.93</td></tr>
+  </tbody>
+</table>
+<p>Sorted by median width the order is the order the page implies: compression 1.23, mild defocus 1.31, sharp defocus 2.47, motion 2.93. The mechanism is right too &mdash; the harder the cause, the wider the edge. What the medians hide is that two of the pairs a triage decision rests on overlap: compression reaches 1.52 on one content while mild defocus begins at 1.27, and sharp defocus reaches 2.62 while motion begins at 2.50.</p>
+<p>This is the honest failure of the experiment, and it is a failure of sample size rather than of the idea. "Look at a hard edge" is a real measurement that ranks causes correctly on average. It is not a diagnostic, because by eye you run it on one edge of one frame, and the spread above is exactly what one edge of one frame buys you. The fix is not to look harder. It is to measure a dozen edges and take the median, which is what the right-hand column does.</p>
+<h3>Normalise before comparing, or you are comparing content</h3>
+<p>Any PSNR here needs a ceiling: the same enlargement of an <em>undamaged</em> source. Without it you read how hard the frame is, not how much damage there is.</p>
+<table>
+  <thead><tr><th>Content</th><th>Ceiling, clean 540&rarr;1080</th><th>Compression</th><th>Photon noise</th><th>Motion 15 px</th><th>Defocus sigma 3</th></tr></thead>
+  <tbody>
+    <tr><td>photo, upper crop</td><td>35.48 dB</td><td>78.9 % (7.5 dB)</td><td>82.8 % (6.1 dB)</td><td>75.1 % (8.8 dB)</td><td>76.3 % (8.4 dB)</td></tr>
+    <tr><td>photo, centre crop</td><td>40.36 dB</td><td>71.2 % (11.6 dB)</td><td>74.2 % (10.4 dB)</td><td>65.2 % (14.1 dB)</td><td>69.2 % (12.4 dB)</td></tr>
+    <tr><td>photo, lower crop</td><td>35.66 dB</td><td>82.3 % (6.3 dB)</td><td>82.8 % (6.1 dB)</td><td>81.3 % (6.7 dB)</td><td>81.3 % (6.7 dB)</td></tr>
+    <tr><td>synthetic test card</td><td>31.38 dB</td><td>82.3 % (5.5 dB)</td><td>92.3 % (2.4 dB)</td><td>64.4 % (11.2 dB)</td><td>68.3 % (9.9 dB)</td></tr>
+  </tbody>
+</table>
+<p>The ceiling alone spans 31.38&ndash;40.36 dB across four frames of the same size. That span is wider than the gap between most pairs of damage types on any single frame, which means an un-normalised comparison between two clips is mostly telling you about the clips. Normalised, the ordering still moves: on the test card motion is the worst case at 64.4 &nbsp;% of ceiling, while across the three photo crops motion and defocus stay within 4.0 percentage points of each other. "Compression recovers better than motion" is a fair rule of thumb and a poor measurement.</p>
+<h3>Does the order matter?</h3>
+<p>The page says denoise first, then enlarge, and gives a reason: enlarging first teaches the model the blocks. Test it with the tool the page prescribes for each cause, clean order against its reverse, full-reference metrics.</p>
+<table>
+  <thead><tr><th>Case</th><th>Upscale only</th><th>Prescribed order</th><th>Reverse order</th><th>Reverse &minus; prescribed</th></tr></thead>
+  <tbody>
+    <tr><td>compression, photo</td><td>28.74 dB</td><td>28.74 dB</td><td>28.75 dB</td><td>+0.01 dB</td></tr>
+    <tr><td>compression, test card</td><td>25.83 dB</td><td>25.85 dB</td><td>25.87 dB</td><td>+0.02 dB</td></tr>
+    <tr><td>noise, photo</td><td>29.94 dB</td><td>29.96 dB</td><td>30.04 dB</td><td>+0.08 dB</td></tr>
+    <tr><td>noise, test card</td><td>28.96 dB</td><td>29.02 dB</td><td>29.04 dB</td><td>+0.02 dB</td></tr>
+    <tr><td>defocus, photo</td><td>27.92 dB</td><td>27.86 dB</td><td>27.87 dB</td><td>+0.01 dB</td></tr>
+  </tbody>
+</table>
+<p>PSNR cannot see the order at all. Every difference is under 0.08 dB and the reverse order wins 5 of 5. If that were the whole story the advice would be folklore. It is not the whole story, and the reason is a measurement problem: a deblocker removes a periodic structure covering a few percent of the pixels, and a mean squared error over the whole frame barely registers it. Measure the structure instead.</p>
+<table>
+  <thead><tr><th>Variant, 1080 output</th><th>Block-step, period 16</th><th>Distance from undamaged</th><th>Content retained</th><th>PSNR</th></tr></thead>
+  <tbody>
+    <tr><td>undamaged source (target)</td><td>1.078</td><td>0.000</td><td>1.000</td><td>40.36 dB</td></tr>
+    <tr><td>upscale only</td><td>1.547</td><td>0.469</td><td>0.591</td><td>28.74 dB</td></tr>
+    <tr><td>deblock p8 before upscale</td><td>0.944</td><td>0.134</td><td>0.609</td><td>28.74 dB</td></tr>
+    <tr><td>deblock p8 after upscale</td><td>0.748</td><td>0.329</td><td>0.619</td><td>28.75 dB</td></tr>
+    <tr><td>deblock p16 after upscale</td><td>0.747</td><td>0.330</td><td>0.619</td><td>28.75 dB</td></tr>
+    <tr><td>boxblur before upscale</td><td>1.175</td><td>0.097</td><td>0.534</td><td>28.71 dB</td></tr>
+    <tr><td>boxblur after upscale</td><td>1.214</td><td>0.136</td><td>0.573</td><td>28.80 dB</td></tr>
+  </tbody>
+</table>
+<p>Two readings, and the second is the interesting one. First, the order does have an effect PSNR cannot see: deblocking before the enlargement lands 0.134 from the undamaged value, deblocking after lands 0.329, and content retention is the same either way (0.609 against 0.619). So the after version is not globally blurrier &mdash; it is specifically flatter <em>at the block boundaries</em>, where it overshoots.</p>
+<p>Second, the obvious explanation is wrong. I expected the after version to fail because a period-8 deblocker meets a period-16 grid, so I ran the correction: the same filter at period 16 on the enlarged frame. It changes nothing. 0.748 against 0.747, a distance of 0.329 against 0.330. The period-mismatch hypothesis is refuted on this frame, and the row is here so that stays on the record. The surviving explanation is footprint: a block edge is one pixel wide at 540 and two at 1080, so the same filter window covers the edge <em>and</em> its neighbours after enlargement, and flattens real detail along with the seam. That is why the advice to denoise before enlarging is correct, and it is not for the reason the page gives.</p>
+<p>The two box-blur rows are the control. A blur has no idea where block boundaries are, yet at 0.097 before the enlargement it looks <em>closer</em> to the undamaged value than any deblocker. Read the content column and the illusion dies: it retains 0.534 of the off-boundary gradient where the deblocker retains 0.609. It scored well by removing everything, which is the failure mode the grid metric alone cannot detect. Both columns are needed, which is the reason this section has five.</p>
+<h3>Sharpening, by cause</h3>
+<p>The page recommends sharpening as part of the compression pipeline and warns against it for motion. Swept from 0 to 200&nbsp;%, same frame, SSIM against the untouched original.</p>
+<table>
+  <thead><tr><th>Cause</th><th>0 %</th><th>50 %</th><th>100 %</th><th>200 %</th><th>Edge energy</th></tr></thead>
+  <tbody>
+    <tr><td>compression</td><td>0.8504</td><td>0.8450</td><td>0.8400</td><td>0.8266</td><td>4.05 &rarr; 5.83</td></tr>
+    <tr><td>motion</td><td>0.8307</td><td>0.8274</td><td>0.8245</td><td>0.8152</td><td>2.43 &rarr; 3.65</td></tr>
+    <tr><td>defocus</td><td>0.8483</td><td>0.8456</td><td>0.8436</td><td>0.8367</td><td>2.11 &rarr; 3.10</td></tr>
+  </tbody>
+</table>
+<p>SSIM falls monotonically in all three, including the case the page recommends it for: compression goes 0.8504 &rarr; 0.8266. PSNR disagrees, moving by less than a tenth of a decibel in every row. Two metrics pointing opposite ways on the same frames is the signal that what is being added is not information: edge energy climbs 4.05 &rarr; 5.83 while the frame moves further from the original, which is what an edge-contrast operation does. Sharpening is worth having when the viewer already knows what the edge should look like &mdash; a logo, a face, a familiar object. For a stranger judging a 100&nbsp;% crop, it is a halo with a more flattering PSNR.</p>
+<h3>What the 2x ceiling is really made of</h3>
+<p>"Past 2x the model invents" reads like a property of the model. Same frame, six source widths, all enlarged to 1080, makes it a property of the source.</p>
+<table>
+  <thead><tr><th>Source long edge</th><th>Factor to 1080</th><th>PSNR</th><th>SSIM</th><th>Source PNG</th></tr></thead>
+  <tbody>
+    <tr><td>270 px</td><td>4.00&times;</td><td>34.94 dB</td><td>0.9446</td><td>63 kB</td></tr>
+    <tr><td>360 px</td><td>3.00&times;</td><td>37.03 dB</td><td>0.9655</td><td>103 kB</td></tr>
+    <tr><td>405 px</td><td>2.67&times;</td><td>38.03 dB</td><td>0.9721</td><td>126 kB</td></tr>
+    <tr><td>540 px</td><td>2.00&times;</td><td>40.36 dB</td><td>0.9853</td><td>205 kB</td></tr>
+    <tr><td>675 px</td><td>1.60&times;</td><td>40.59 dB</td><td>0.9886</td><td>295 kB</td></tr>
+    <tr><td>810 px</td><td>1.33&times;</td><td>41.54 dB</td><td>0.9921</td><td>394 kB</td></tr>
+  </tbody>
+</table>
+<p>Doubling source width from 270 to 540 buys 5.42 dB. Going from 540 to 810 buys 1.18 dB for 1.9&times; the pixels. And the two routes to the same 1080 output: 270 at 4&times; scores 34.94 dB, 540 at 2&times; scores 40.36 dB. A 5.4 dB gap between two enlargements of the same frame to the same size is not the factor. It is the source: the 4&times; route never had the detail to carry. "The model invents past 2x" and "there is nothing left to reconstruct past 2x" describe the same wall from two sides, and only the second one tells you what to do about it.</p>
+<div class="warn"><strong>What this changes in the workflow.</strong> Read noise sigma first: above a few levels it is a low-light frame, denoising is the whole job, and no other diagnosis matters. Then anisotropy, expecting the ratio to fall below 1 when the shake was horizontal. Then, only if you already know the clip came through a lossy encoder, block-step energy at the period the grid is at &mdash; remembering that the period doubles when you enlarge, and that this number is comparable within a frame, not between frames. If all three read normal, the frame is out of focus and the file is the answer. And per the width table, one eyeballed edge will not tell you that reliably: measure a dozen and take the median.</div>
+<h3>Reproduce it</h3>
+<p>numpy and ffmpeg only. No model, no network, deterministic &mdash; the noise seed is fixed at 49 in the full script.</p>
+<pre><code>import subprocess, numpy as np
+from PIL import Image
+
+def luma(im):  return np.asarray(im, float).mean(axis=2)
+
+def sigma(im):
+    """median-absolute-deviation noise estimate, insensitive to textured edges"""
+    a = luma(im)
+    k = np.array([[1,-2,1],[-2,4,-2],[1,-2,1]], float)
+    h, w = a.shape
+    acc = np.zeros((h - 2, w - 2))
+    for dy in range(3):
+        for dx in range(3):
+            acc += k[dy, dx] * a[dy:dy + h - 2, dx:dx + w - 2]
+    return float(np.median(np.abs(acc - np.median(acc))) / 0.6745 / 6.0)
+
+def aniso(im):
+    """x/y gradient ratio; horizontal blur drives it below 1"""
+    a = luma(im)
+    return float((np.diff(a, axis=1)**2).mean() / (np.diff(a, axis=0)**2).mean())
+
+def blockstep(im, period):
+    """mean gradient on block boundaries / mean gradient between them"""
+    a, out = luma(im), []
+    for axis in (1, 0):
+        d = np.abs(np.diff(a, axis=axis))
+        n = d.shape[axis]
+        on = ((np.arange(n) + 1) % period) == 0
+        out.append(d[:, on].mean() / d[:, ~on].mean() if axis == 1
+                   else d[on, :].mean() / d[~on, :].mean())
+    return float(np.mean(out))
+
+im = Image.open("frame.png").convert("RGB")
+subprocess.run(["ffmpeg","-y","-loglevel","error","-loop","1","-i","frame.png",
+                "-t","0.1","-r","10","-c:v","libx264","-crf","40",
+                "-pix_fmt","yuv420p","t.mp4"], check=True)
+subprocess.run(["ffmpeg","-y","-loglevel","error","-i","t.mp4",
+                "-frames:v","1","crf40.png"], check=True)
+c = Image.open("crf40.png").convert("RGB")
+
+print(f"sigma {sigma(im):.2f} {sigma(c):.2f}")
+print(f"aniso {aniso(im):.2f} {aniso(c):.2f}")
+print(f"block {blockstep(im, 8):.2f} {blockstep(c, 8):.2f}")</code></pre>
+<p>Expected output on the centre photo crop:</p>
+<pre><code>sigma 0.66 0.16
+aniso 1.53 1.79
+block 1.00 1.36</code></pre>
+
 <h2>Frequently asked</h2>
 
 <h3>How do you fix a blurry video?</h3>
@@ -168,6 +326,9 @@ ffmpeg -f concat -safe 0 -i list.txt -c output.mp4</code></pre>
 <h3>What is the maximum useful upscale factor?</h3>
 <p>About 2x per axis. Past that the model invents rather than reconstructs.</p>
 
+<h3>How can you tell which cause of blur you are looking at?</h3>
+<p>Measure rather than look. Noise sigma separates a low-light frame by two orders of magnitude, gradient anisotropy below 1 reveals horizontal motion, and block-step energy at the grid period reveals compression within a single frame. A single edge inspected by eye ranks the causes correctly on average but its spread overlaps between causes, so it is not a reliable diagnosis on one frame.</p>
+
 <h3>How do you remove compression blocks from a video?</h3>
 <p>Treat them as structure, not noise. Denoise for block artifacts specifically, then enlarge.</p>
 
@@ -175,12 +336,12 @@ ffmpeg -f concat -safe 0 -i list.txt -c output.mp4</code></pre>
 <p>Split at keyframes, process each segment, rejoin with concat. Cutting on keyframes keeps the seam invisible.</p>
 
 <h2>Tools</h2>
-<p>I put this pipeline into <a href="https://upgolab.com">UpgoLAB</a> — browser-based, eight presets by damage type rather than one slider, free during launch, no card, no watermark. Photos to 4 MP, clips to 30 seconds. Run it here: <a href="https://upgolab.com">https://upgolab.com</a></p>
+<p>I put this pipeline into UpgoLAB — browser-based, eight presets by damage type rather than one slider, free during launch, no card, no watermark. Photos to 4 MP, clips to 30 seconds. Run it here: <a href="https://upgolab.com">https://upgolab.com</a></p>
 
 <p>Comparison against Upscayl, Video2X and Topaz: <a href="https://celticgemini001.github.io/upgolab-tools/compare.html">four-way comparison</a>. Free replacement options for Topaz: <a href="https://celticgemini001.github.io/upgolab-tools/topaz-alternative.html">Topaz alternatives</a>.</p>
 
 <footer>
-  <p>Written by the team behind <a href="https://upgolab.com">UpgoLAB</a>. Corrections welcome. Updated 2026-11-09.</p>
+  <p>Written by the team behind UpgoLAB. Corrections welcome. Updated 2026-11-17.</p>
 </footer>
 
 <!-- sibling-nav-block -->
