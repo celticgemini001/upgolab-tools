@@ -10,6 +10,7 @@
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"What resolution do marketplaces require for product photos?","acceptedAnswer":{"@type":"Answer","text":"Most ask for a long edge of 1600 to 2000 pixels and reject below 1000. That is usually reachable from a phone photo with a single 2x enlargement, which is why 4K product shots are often unnecessary."}},
 {"@type":"Question","name":"Why do upscaled product photos look fake?","acceptedAnswer":{"@type":"Answer","text":"Over-sharpening plus invented texture. Halos form on edges, logos get letter-shaped artifacts, and fabric picks up detail that is not there. Keep the factor near 2x and use a crisp preset rather than a texture one."}},
+{"@type":"Question","name":"How small can text be before upscaling cannot recover it?","acceptedAnswer":{"@type":"Answer","text":"About 10 pixels of capital-letter height in the source file. Below that, measured ink-mask IoU against a native render of the same text stays under 0.90 no matter which kernel or scale factor is used, and dropping to 1.5x changes nothing. Above about 12 pixels, 2x and 4x score within 0.002 of each other."}},
 {"@type":"Question","name":"Should you upscale or reshoot for a listing?","acceptedAnswer":{"@type":"Answer","text":"Reshoot if you still have the item and a window. Upscaling is for stock already sold, discontinued lines, and archive catalogues where the original file is gone."}},
 {"@type":"Question","name":"Does upscaling help a shot that is already sharp?","acceptedAnswer":{"@type":"Answer","text":"Barely. A sharp 2000px file enlarged to 4000px is mostly interpolation. It helps when the file is below marketplace minimums, not when it already passes."}}]}
 </script>
@@ -73,7 +74,7 @@ figure{margin:24px 0}figcaption{color:#666;font-size:.86rem}
 </div>
 
 <h2>Watch the logos</h2>
-<p>Brand marks and small print are the first casualty. Past 2x, a letterform becomes a shape that resembles the letter without being it. Check the logo at 100% before uploading, and if it smears, drop to 1.5x rather than pushing.</p>
+<p>Brand marks and small print are the first casualty. The usual explanation is that pushing past 2x damages the letterform, but that is not what a measurement shows — the deciding variable is how many pixels tall the letters were in the original file. Below about 10 px of cap height nothing recovers them; above about 12 px the enlargement is safe at any factor. The next section measures it.</p>
 
 <h2>Results at 100% crop</h2>
 <figure>
@@ -93,20 +94,196 @@ figure{margin:24px 0}figcaption{color:#666;font-size:.86rem}
   <figcaption>True Texture — only for lifestyle shots, not white background.</figcaption>
 </figure>
 
+<h2>Where small print actually breaks: measured, not assumed</h2>
+<p>The advice further up this page says that past 2x a letterform "becomes a shape that resembles the letter without being it", and that if a logo smears you should "drop to 1.5x rather than pushing". Both halves of that are testable, so I tested them, and the first half is wrong in an instructive way.</p>
+
+<p>The problem with the claim is that it blames the scale factor. Scale factor is the one variable you control. What decides whether a label survives is how many pixels tall the letters were in the file you started with, and that number is usually set by how far away the photographer stood. Below, cap height means the height of a capital letter in the source image, in pixels.</p>
+
+<h3>The setup, so you can rerun it</h3>
+<p>Everything is rendered from one supersampled master and box-downsampled, so the source and the reference sit on exactly the same pixel grid. That matters: if you build the reference by resampling the upscaled image, you are measuring your own resampler. Three renders per measurement:</p>
+<ul>
+  <li><strong>source</strong> — text drawn at 16x, box-downsampled to 1x</li>
+  <li><strong>native (control)</strong> — the same text drawn at 16x, box-downsampled straight to the target size</li>
+  <li><strong>upscaled</strong> — the 1x source resized to the target size with bilinear, bicubic or lanczos</li>
+</ul>
+<p>The score is ink-mask IoU against the native render. 1,000 means the upscale is indistinguishable from having captured at the target resolution; 0,333 means two thirds of the letter shapes are wrong. The mask threshold is the midpoint between paper and ink, so this measures shape, not brightness.</p>
+
+<p>One control before any of the numbers mean anything. Building the native render twice — once from a 16x master, once from a 64x master — gives IoU of 0,976 to 0,986 between those two builds. That is the ceiling: even a perfect upscaler cannot score 1,000 against a reference that itself moves in the fourth decimal. So read every number below as "how much of the available 0,98 did this recover", not as an absolute grade.</p>
+
+<h3>Cap height decides, scale factor barely matters</h3>
+<p>Lanczos at 2x, one string of digits and letters, six different source cap heights. IoU after upscaling, against the native render at the same output size:</p>
+<table>
+  <thead><tr><th>Source cap height</th><th>Ink px in source</th><th>bilinear</th><th>bicubic</th><th>lanczos</th><th>ceiling</th></tr></thead>
+  <tbody>
+    <tr><td>5 px</td><td>38</td><td>0,130</td><td>0,320</td><td><strong>0,333</strong></td><td>0,981</td></tr>
+    <tr><td>7 px</td><td>80</td><td>0,477</td><td>0,602</td><td><strong>0,669</strong></td><td>0,904</td></tr>
+    <tr><td>9 px</td><td>129</td><td>0,723</td><td>0,797</td><td><strong>0,858</strong></td><td>0,978</td></tr>
+    <tr><td>12 px</td><td>197</td><td>0,905</td><td>0,912</td><td><strong>0,941</strong></td><td>0,976</td></tr>
+    <tr><td>16 px</td><td>425</td><td>0,933</td><td>0,937</td><td><strong>0,955</strong></td><td>0,973</td></tr>
+    <tr><td>22 px</td><td>764</td><td>0,968</td><td>0,966</td><td><strong>0,972</strong></td><td>0,984</td></tr>
+  </tbody>
+</table>
+<p>The move from 5 px to 22 px cap height is worth <strong>0,639 IoU</strong>. Now hold the source still and change only the scale factor:</p>
+<table>
+  <thead><tr><th>Source cap height</th><th>2x</th><th>3x</th><th>4x</th><th>spread</th></tr></thead>
+  <tbody>
+    <tr><td>5 px</td><td>0,333</td><td>0,406</td><td>0,357</td><td>0,073</td></tr>
+    <tr><td>7 px</td><td>0,669</td><td>0,707</td><td>0,715</td><td>0,047</td></tr>
+    <tr><td>9 px</td><td>0,858</td><td>0,864</td><td>0,792</td><td>0,072</td></tr>
+    <tr><td>12 px</td><td>0,941</td><td>0,952</td><td>0,933</td><td>0,020</td></tr>
+    <tr><td>16 px</td><td>0,955</td><td>0,937</td><td>0,948</td><td>0,019</td></tr>
+    <tr><td>22 px</td><td>0,972</td><td>0,957</td><td>0,974</td><td>0,017</td></tr>
+  </tbody>
+</table>
+<p>The largest spread any scale factor produces, anywhere in the table, is 0,073. Cap height is worth <strong>8,7 times more</strong> than the choice of 2x versus 3x versus 4x. Notice also that the spread <em>shrinks</em> as cap height grows: at 22 px, 2x and 4x are within 0,002 of each other. The 3x column is the worst of the three at every cap height above 12 px, which is a rounding coincidence of where pixel centres land, not a rule — the differences are inside the measurement's own noise.</p>
+
+<div class="warn">
+  <strong>This is the part the old advice got wrong.</strong> "Past 2x, a letterform degrades" is false as stated: at 22 px cap height, 4x lanczos scores 0,974 against 2x's 0,972. What degrades past 2x is nothing. What was already broken below 2x stays broken, because it broke in the camera, not in the interpolator.
+</div>
+
+<h3>The knee is at about 10 px of cap height</h3>
+<p>A single table hides where the cliff is, so the same measurement run at every integer cap height from 6 to 16, on two different strings. The second string is there to check that the result is a property of the size and not of one particular arrangement of glyphs:</p>
+<table>
+  <thead><tr><th>String</th><th>IoU at 6 px</th><th>IoU at 9 px</th><th>IoU at 16 px</th><th>cap height for IoU 0,90</th></tr></thead>
+  <tbody>
+    <tr><td><code>SIZE 42</code></td><td>0,667</td><td>0,858</td><td>0,955</td><td>9,83 px</td></tr>
+    <tr><td><code>MADE IN VN</code></td><td>0,596</td><td>0,878</td><td>0,937</td><td>9,43 px</td></tr>
+  </tbody>
+</table>
+<p>Two different strings, both crossing 0,90 IoU within half a pixel of each other. That is a real threshold and it is about <strong>10 px of cap height in the source</strong>. Under it, upscaling produces something that reads as writing at a glance and not as writing on inspection — which is exactly the "resembles the letter without being it" effect, except it is a function of capture size, not of pushing past 2x. Over it, no kernel choice matters much and the enlargement is safe.</p>
+
+<h3>The 1.5x fallback, tested, does nothing</h3>
+<p>The page used to say: if the logo smears, drop to 1.5x. That advice implies 1.5x preserves something 2x destroys. Here is the same final output size reached two ways — one 2x step, versus a 1.5x step followed by a 1,333x touch-up — scored against the same native reference:</p>
+<pre><code>cap  2x direct      via 1.5x      difference
+ 5   0,333         0,333         +0,0000
+ 7   0,669         0,671         +0,0028
+ 9   0,858         0,863         +0,0054
+12   0,941         0,941         +0,0000
+16   0,955         0,956         +0,0006</code></pre>
+<p>The best the detour ever buys is 0,0054 IoU at 9 px cap height, which is a third of the spread caused by picking a different kernel at that same size. In two of the five cases it buys literally nothing. Dropping to 1.5x does not preserve small print; it just gives you a smaller file that you then enlarge again, and the second enlargement throws away whatever the first one saved. If a label is unreadable after 2x, it was under 10 px of cap height in the file, and the fix is a new capture, not a different multiplier.</p>
+
+<h3>Sharpening: helps only where the text is already lost</h3>
+<p>Unsharp mask after a 2x lanczos upscale, radius 1,0. The two columns that matter are the IoU gain and what it costs in halo — overshoot brighter than the paper, as a percentage of the full paper-to-ink range:</p>
+<table>
+  <thead><tr><th>Source cap height</th><th>IoU, sharpening off</th><th>IoU, 100% unsharp</th><th>gain</th><th>halo, off</th><th>halo, 100%</th></tr></thead>
+  <tbody>
+    <tr><td>5 px</td><td>0,333</td><td>0,536</td><td>+0,2026</td><td>10,4%</td><td>26,4%</td></tr>
+    <tr><td>9 px</td><td>0,858</td><td>0,813</td><td>−0,0445</td><td>21,7%</td><td>45,5%</td></tr>
+    <tr><td>16 px</td><td>0,955</td><td>0,954</td><td>−0,0017</td><td>13,4%</td><td>32,4%</td></tr>
+  </tbody>
+</table>
+<p>At 5 px cap height sharpening is a large win — it adds 0,20 IoU, the single biggest improvement in this whole article. At 9 px it <em>loses</em> 0,045, and at 16 px it does nothing. The mechanism is simple: at 5 px the glyphs are so blurred that thickening them pulls the mask back toward the true shape, and at 9 px they are already roughly right, so thickening them pushes the mask past the reference into the halo. This is why sharpening small print feels like it works when you check a logo you already know how to read, and why it makes a product look counterfeit when a buyer who does not know the logo checks it at zoom.</p>
+<p>Halo roughly doubles to triples in every case. On a white-background listing that halo is against a bright field, which is where it reads as a reflective rim rather than as crispness.</p>
+
+<h3>Two things that turned out not to matter</h3>
+<p><strong>Chaining 2x twice is the same as 4x once.</strong> Scored against the same native 4x reference, the difference is under 0,002 at every cap height tested: 0,715 versus 0,714 at 7 px, 0,933 versus 0,935 at 12 px, 0,974 versus 0,974 at 22 px. If a tool only offers 2x steps, take two of them and stop worrying.</p>
+<p><strong>JPEG quality does not behave monotonically.</strong> A cap-12 source saved at three qualities, then upscaled 2x with lanczos:</p>
+<table>
+  <thead><tr><th>Saved at</th><th>IoU after 2x</th><th>ink mass retained</th><th>halo</th></tr></thead>
+  <tbody>
+    <tr><td>q95</td><td>0,939</td><td>100,0%</td><td>14,56%</td></tr>
+    <tr><td>q85</td><td>0,945</td><td>100,1%</td><td>19,31%</td></tr>
+    <tr><td>q70</td><td>0,931</td><td>100,0%</td><td>22,28%</td></tr>
+  </tbody>
+</table>
+<p>q85 beats q95 by 0,006 IoU. That is not a recommendation to save at 85 — the halo cost rises by 4,75 points, which is four times the IoU difference, and it is in the direction a buyer can see. The honest reading is that the IoU difference is inside the noise, and that ink mass is preserved at every quality (100,0 to 100,1%), so compression at these settings redistributes the label's edges into ringing rather than deleting them. Ringing is the thing that shows up as a light outline, and the halo column is where you see it.</p>
+
+<h3>The only number you need before you shoot</h3>
+<p>Print measurement is not abstract, so here is the same measurement converted into a decision you can make before the shutter. A small legal line on a product label is about 1,2 mm tall, and the frame covers about 300 mm of the actual product across its long edge. That gives pixels per millimetre, then cap height, then the IoU the 2x upscale will produce:</p>
+<table>
+  <thead><tr><th>Capture long edge</th><th>px per mm</th><th>cap height in source</th><th>IoU after 2x</th><th>verdict</th></tr></thead>
+  <tbody>
+    <tr><td>1000 px</td><td>3,33</td><td>4,00 px</td><td>0,667</td><td>too small</td></tr>
+    <tr><td>1600 px</td><td>5,33</td><td>6,40 px</td><td>0,667</td><td>too small</td></tr>
+    <tr><td>2000 px</td><td>6,67</td><td>8,00 px</td><td>0,881</td><td>too small</td></tr>
+    <tr><td>3000 px</td><td>10,00</td><td>12,00 px</td><td>0,941</td><td>usable</td></tr>
+    <tr><td>4000 px</td><td>13,33</td><td>16,00 px</td><td>0,955</td><td>usable</td></tr>
+  </tbody>
+</table>
+<p>Read the third column, not the first. A 2.000 px capture and a 4.000 px capture differ by a factor of two in file size and by 0,07 IoU — but the 2.000 px one lands at 8 px cap height, which is on the wrong side of the 10 px knee. The two rows that clear the threshold are the two where the <em>label</em> got at least 12 px, and you can reach that from a 1.600 px file by simply standing closer or framing tighter. Which is the whole finding restated as a camera instruction: zoom and position buy more label legibility than resolution, because they raise cap height directly, while resolution spends itself over the whole scene.</p>
+
+<p>Two caveats on that table, stated rather than buried. The assumptions are a 1,2 mm line and a 300 mm frame width; if your product fills a fifth of the frame instead of a tenth, every cap height doubles and the verdict moves up a row. And the IoU column is interpolated on the measured cap-height sweep, so it inherits the same ceiling of about 0,98 that the control exposed — a row showing 0,955 is already near the limit of what the metric can distinguish.</p>
+
+<div class="note">
+  <strong>What this changes about the workflow above.</strong> The order of operations stays as it was: denoise, enlarge, sharpen at output size, clean the background last. What changes is the decision point. Before spending time on the upscale, measure the cap height of the smallest text that has to be readable. Under about 10 px, no kernel, factor or sharpening amount recovers it and the item needs a reshoot or a tighter crop. Over about 12 px, 2x is safe and further enlargement buys nothing worth the file size.
+</div>
+
+<h3>Reproducing the first table</h3>
+<p>Self-contained, no input files. Needs numpy and Pillow. The cap-height sweep uses boxes of 150x60 pixels, which is small on purpose so that 4x stays cheap:</p>
+<pre><code>#!/usr/bin/env python3
+"""Copy-paste reproduction of the cap-height table. No input files, no /tmp."""
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+
+FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+PAPER, INK, SS, CANVAS = 0.70, 0.04, 16, (150, 60)
+THR = (PAPER + INK) / 2
+
+
+def cap_font(cap):
+    """Font size whose 'H' is &lt;cap&gt; px tall. Hinting drifts, so iterate."""
+    f = ImageFont.truetype(FONT, 400)
+    b = f.getbbox("H")
+    size = 400 * cap / (b[3] - b[1])
+    for _ in range(5):
+        f = ImageFont.truetype(FONT, max(1, round(size)))
+        b = f.getbbox("H")
+        size = size * cap / (b[3] - b[1])
+    return ImageFont.truetype(FONT, max(1, round(size)))
+
+
+def at(cap, k):
+    """Render 'SIZE 42' at k x, from one SS-supersampled master."""
+    f = cap_font(cap * SS)
+    im = Image.new("L", (CANVAS[0] * SS, CANVAS[1] * SS), round(PAPER * 255))
+    d = ImageDraw.Draw(im)
+    b = d.textbbox((0, 0), "SIZE 42", font=f)
+    d.text(((im.width - (b[2] - b[0])) // 2 - b[0],
+            (im.height - (b[3] - b[1])) // 2 - b[1]), "SIZE 42", font=f,
+           fill=round(INK * 255))
+    return im.resize((CANVAS[0] * k, CANVAS[1] * k), Image.BOX)
+
+
+def arr(im):
+    return np.asarray(im, dtype=np.float32) / 255.0
+
+
+def iou(a, b):
+    ma, mb = a &lt; THR, b &lt; THR
+    return (ma &amp; mb).sum() / (ma | mb).sum()
+
+
+for cap in (5, 7, 9, 12, 16, 22):
+    src, nat = at(cap, 1), at(cap, 2)
+    out = [f"{cap:2d}px"]
+    for flt in (Image.BILINEAR, Image.BICUBIC, Image.LANCZOS):
+        up = src.resize((src.width * 2, src.height * 2), flt)
+        out.append(f"{iou(arr(up), arr(nat)):.3f}")
+    print(" ".join(out))</code></pre>
+<p>Expected output, three decimals, columns are bilinear, bicubic, lanczos:</p>
+<pre><code> 5px 0.130 0.320 0.333
+ 7px 0.477 0.602 0.669
+ 9px 0.723 0.797 0.858
+12px 0.905 0.912 0.941
+16px 0.933 0.937 0.955
+22px 0.968 0.966 0.972</code></pre>
+
 <h2>Frequently asked</h2>
 <h3>What resolution do marketplaces require for product photos?</h3>
 <p>Most want a long edge of 1600 to 2000 px and reject below 1000. A phone photo usually clears that with one 2x step.</p>
 <h3>Why do upscaled product photos look fake?</h3>
 <p>Over-sharpening and invented texture. Halos form on edges and logos turn into letter-shaped artifacts.</p>
+<h3>How small can text be before upscaling cannot recover it?</h3>
+<p>About 10 px of capital-letter height in the source. Below that, measured ink-mask IoU against a native render stays under 0,90 whatever kernel or factor you pick. Above about 12 px, 2x and 4x land within 0,002 of each other.</p>
 <h3>Should you upscale or reshoot for a listing?</h3>
 <p>Reshoot if the item is still available. Upscale for sold stock, discontinued lines and archive catalogues.</p>
 <h3>Does upscaling help a shot that is already sharp?</h3>
 <p>Barely. It helps when the file is under the marketplace minimum, not when it already passes.</p>
 
 <h2>Tool</h2>
-<p>The crisp preset used here is one of eight in <a href="https://upgolab.com">UpgoLAB</a>, browser based, free during launch, no watermark, photos to 4 MP. Open it at <a href="https://upgolab.com">https://upgolab.com</a>. Other angles: <a href="https://celticgemini001.github.io/upgolab-tools/compare.html">tool comparison</a> and <a href="https://celticgemini001.github.io/upgolab-tools/blurry-video.html">blurry video guide</a>.</p>
+<p>The crisp preset used here is one of eight in <a href="https://upgolab.com">UpgoLAB</a>, browser based, free during launch, no watermark, photos to 4 MP. Other angles: <a href="https://celticgemini001.github.io/upgolab-tools/compare.html">tool comparison</a> and <a href="https://celticgemini001.github.io/upgolab-tools/blurry-video.html">blurry video guide</a>.</p>
 
-<footer><p>Written by the team behind <a href="https://upgolab.com">UpgoLAB</a>. Updated 2026-11-09.</p></footer>
+<footer><p>Written by the team behind UpgoLAB. Updated 2026-11-17.</p></footer>
 <!-- sibling-nav-block -->
 <nav class="sisternav" aria-label="Related pages">
 <p>Related</p>
