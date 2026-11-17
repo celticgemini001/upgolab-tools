@@ -546,6 +546,16 @@ guides above. Same rule applies: if a number here disagrees with your own file, 
   <span class="metric">−16.08 dB on saturated colour · −0.02 dB on mid-tone · bias survives 4× unchanged · neutral ramp exact</span>
 </a>
 
+<a class="card" href="/upgolab-gif-palette-upscaling/">
+  <h3>GIF and Palette Limits Before an Upscale: 256 Colours, Measured 1× to 8×</h3>
+  <p>A 256-colour image upscaled with any interpolating kernel leaves the palette immediately:
+  5 colours becomes 458 at 4×, 30 becomes 3,570. Band width grows 3.20 → 7.62 → 16.27 → 24.94 px
+  from 1× to 8× without dither, and stays flat at 2.0–2.3 with it — at a 2.78× byte cost.
+  Quantise-first scores +1.77 dB against a truecolour reference and is a third as sharp, which is
+  why PSNR tuning sends you to the softer pipeline.</p>
+  <span class="metric">458 colours from 5 · band 16.27 px at 4× undithered · 71% off-palette at 8× lanczos · 13.9× smaller as WebP</span>
+</a>
+
 
 
 <ul>
