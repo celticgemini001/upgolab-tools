@@ -536,6 +536,16 @@ guides above. Same rule applies: if a number here disagrees with your own file, 
   <span class="metric">540-line null · 908 of 1080 lines at −6 dB · 11.05 dB for no deinterlace · 3.32 dB for inverted field order</span>
 </a>
 
+<a class="card" href="/upgolab-color-matrix-and-range/">
+  <h3>Colour Matrix and Range Before Upscaling: Two Bugs That Look Identical</h3>
+  <p>A bt709/bt601 matrix mistake and a limited/full range mistake both tint the output and are
+  both invisible to grey-ramp testing. Measured against a known chart the same matrix bug costs
+  0.02 dB on mid-tone texture and 16.08 dB on saturated colour, because neutrals are provably
+  invariant under any matrix. Upscaling cannot dilute it — the bias comes out of a 4× lanczos
+  bit-identical at min and max. A neutral ramp separates the two bugs with zero ambiguity.</p>
+  <span class="metric">−16.08 dB on saturated colour · −0.02 dB on mid-tone · bias survives 4× unchanged · neutral ramp exact</span>
+</a>
+
 
 
 <ul>
