@@ -50,6 +50,14 @@
         "@type": "Answer",
         "text": "Video2X focuses on video frames and can also interpolate frame rate. Audio is typically remuxed afterwards. Check the current documentation for your build, since behaviour has changed across versions."
       }
+    },
+    {
+      "@type": "Question",
+      "name": "What about the 30 second limit?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "It is a real constraint. For longer files, split at keyframes, process each segment, then rejoin without re-encoding. The seam is invisible when you cut on keyframes: measured against a one-shot encode the worst frame differs by 0.22 dB. But the segments are not the length you ask for. On a normal B-frame encode, -segment_time 30 produces a 31.0 second first file because the muxer waits for a keyframe past the boundary shifted by the reorder delay. Use 28 seconds and verify each segment with ffprobe before uploading."
+      }
     }
   ]
 }
@@ -96,7 +104,7 @@
 <table>
   <thead><tr><th>Your situation</th><th>Use this</th><th>Why</th></tr></thead>
   <tbody>
-    <tr><td>Clip under 30 s, no GPU, phone or weak laptop</td><td><a href="https://upgolab.com">UpgoLAB</a></td><td>Free during launch, runs in browser, no install, no watermark</td></tr>
+    <tr><td>Clip under 30 s, no GPU, phone or weak laptop</td><td>UpgoLAB</td><td>Free during launch, runs in browser, no install, no watermark</td></tr>
     <tr><td>Long video, you own a Vulkan GPU</td><td>Video2X</td><td>Free, open source, no length limit</td></tr>
     <tr><td>Windows, only need light cleanup</td><td>Clipchamp</td><td>Already installed, basic enhancement</td></tr>
     <tr><td>40 minute delivery today, paid is fine</td><td>Topaz Video AI</td><td>Nothing free matches it on long-form motion</td></tr>
@@ -132,7 +140,7 @@
 </table>
 
 <h2>The mistake that makes any of these look bad</h2>
-<p>Most guide say enlarge first. That makes the model learn the compression blocks and enlarge them too. The sequence that holds up:</p>
+<p>Most guides say enlarge first. That makes the model learn the compression blocks and enlarge them too. The sequence that holds up:</p>
 <ol>
   <li>Denoise, targeting block artifacts rather than sensor grain</li>
   <li>Enlarge at most 2x per axis</li>
@@ -145,14 +153,201 @@
   <strong>Compression noise is not grain.</strong> Compression imposes a regular block grid; sensor grain is random. A generic denoiser treats the grid as noise and leaves it in place, then the upscaler amplifies it. Fixing this order changed results more than switching tools ever did.
 </div>
 
-<h2>Splitting a clip to fit a 30 second limit</h2>
-<p>Cut at keyframes so nothing is re-encoded:</p>
-<pre><code>ffmpeg -ss 00:01:12 -to 00:01:38 -i input.mp4 -c copy segment.mp4</code></pre>
-<p>Batch split a long file:</p>
-<pre><code>ffmpeg -i input.mp4 -c copy -f segment -segment_time 30 -reset_timestamps 1 seg-%03d.mp4</code></pre>
-<p>Rejoin without a second encode:</p>
-<pre><code>printf "file '%s'\n" seg-*.mp4 &gt; list.txt
+<h2>Splitting a clip to fit 30 seconds — measured on a real upload, and the margin you actually need</h2>
+
+<p>This page used to say: <em>"Cut at keyframes so nothing is re-encoded, then rejoin — the seam is
+invisible."</em> Three of those four clauses survived measurement. The number did not. On a normal
+encoder output the first file comes back <strong>31.0 seconds</strong>, not 30, and a tool with a hard
+30-second cap rejects it.</p>
+
+<p>Test source: a 40.0 s 1080×608 clip built from a real photo panned at 0.35 px/frame, encoded once to
+540p (CRF 23, <code>-g 30</code>, B-frames on) — the shape of what actually comes out of a phone or a
+screen recorder. Then the page's own pipeline: split, enlarge each segment to 1080p, concat with
+<code>-c copy</code>.</p>
+
+<h3>1 — The cut rule is not "first keyframe at or after 30 s"</h3>
+
+<p>That rule is what this cluster published earlier, fitted on clips whose first DTS is 0. It is wrong
+for anything an encoder produces by default, because B-frames push the timeline backwards before the
+first packet. Measured first DTS on the 540p upload: <strong>−0.0667 s</strong> — two frames of reorder
+delay at 30 fps.</p>
+
+<p>The muxer's clock starts at that negative DTS, so the boundary it compares against is
+<code>30 + 0.0667</code>, not <code>30</code>. A keyframe sitting exactly on 30.000 s no longer
+satisfies it, and the cut slides to the next one:</p>
+
+<p class="note"><code>segment length = g × ceil((30 + |first_dts|) / g)</code> &nbsp;— the cut lands on the first
+keyframe at or beyond the boundary, measured from where the packet timeline actually starts.</p>
+
+<p>For a 1-second grid that is 31 × 1.0 = 31.0 s. The old expression <code>30 + ((-30) mod g)</code>
+returns 30.0 there, which is why the failure is invisible in every table that was built on
+keyframe-locked test clips.</p>
+
+<table>
+  <thead>
+    <tr><th>Keyframe grid</th><th>First DTS</th><th>Old formula</th><th>New formula</th><th>Measured 1st segment</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>0.333 s</td><td>−0.0667</td><td>30.33</td><td>30.33</td><td>30.333</td></tr>
+    <tr><td>0.5 s</td><td>−0.0667</td><td>30.00</td><td>30.50</td><td>30.5</td></tr>
+    <tr><td>1.0 s</td><td>0.0</td><td>30.0</td><td>30.0</td><td class="yes">30.0</td></tr>
+    <tr><td>1.0 s</td><td>−0.0667</td><td>30.0</td><td>31.0</td><td class="no">31.0</td></tr>
+    <tr><td>1.5 s</td><td>−0.0667</td><td>30.0</td><td>31.5</td><td class="no">31.5</td></tr>
+    <tr><td>2.0 s</td><td>−0.0667</td><td>30.0</td><td>32.0</td><td class="no">32.0</td></tr>
+    <tr><td>3.0 s</td><td>−0.0667</td><td>30.00</td><td>33.0</td><td class="no">33.0</td></tr>
+    <tr><td>8.333 s</td><td>−0.0667</td><td>33.33</td><td>33.33</td><td>33.333</td></tr>
+  </tbody>
+</table>
+
+<p>Two things to read off that table. First, the new expression fits <strong>24/24</strong> measured
+segments within 0.06 s. The old one fits 17/24, and the split is the interesting part: it is
+<strong>10/10</strong> on the earlier test clips, which were encoded without B-frames
+(<code>first_dts</code> exactly 0), and <strong>7/14</strong> on normal encoder output. The formula was
+never wrong about keyframe grids — it was missing the reorder delay that every default encode has.
+Second, a grid that divides 30 is the dangerous case, not the safe one: those are exactly the rows
+where the old formula says "works" and the measured file is over the cap.</p>
+
+<div class="warn">
+  <strong>The failure is silent.</strong> <code>ffmpeg</code> exits 0, keeps every frame, and the
+  rejoin is frame-identical. Nothing in the output tells you the segment is 31 seconds. The only way
+  to catch it is to measure the file you just wrote, before you upload it.
+</div>
+
+<h3>2 — How much margin. Measured, not guessed</h3>
+
+<p>If the cap is 30 s and you cannot re-encode, subtracting one keyframe interval is the fractional fix,
+but the measurement says it is not enough. Same 40 s source, 1 s grid, B-frames on:</p>
+
+<table>
+  <thead>
+    <tr><th><code>-segment_time</code></th><th>Segments</th><th>Worst file</th><th>Under 30 s?</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>30</td><td>2</td><td class="no">31.023</td><td>No — over by 1.023</td></tr>
+    <tr><td>29.5</td><td>2</td><td class="no">30.023</td><td>No — over by 0.023</td></tr>
+    <tr><td>29</td><td>2</td><td class="no">30.023</td><td>No — over by 0.023</td></tr>
+    <tr><td>28.5</td><td>2</td><td class="yes">29.023</td><td>Yes</td></tr>
+    <tr><td>28</td><td>2</td><td class="yes">29.023</td><td>Yes</td></tr>
+    <tr><td>26</td><td>2</td><td class="yes">27.023</td><td>Yes</td></tr>
+  </tbody>
+</table>
+
+<p>29 does not work, and the reason is subtle enough to be worth stating exactly. The segment holds
+precisely <strong>900 frames</strong> — exactly 30.000 s of video — but its video stream starts at
+<code>start_time 0.066016</code> instead of 0, so <code>ffprobe</code> reports the file as
+<strong>30.023 s</strong>. Three frames of duration are not added; a 23 ms offset is. A cap that
+measures the container, which is what every upload validator does, sees 30.023 and rejects it.</p>
+
+<p>The first value that clears the cap with a measured result is <strong>28.5</strong>. Round down to
+<strong>28</strong> and you keep 1.0 s of headroom for a different GOP, a different frame rate, or a
+tool that rounds up. 26 is the safe floor if the source has irregular scene-cut keyframes.</p>
+
+<h3>3 — The seam really is invisible. That claim held up</h3>
+
+<p>This was the one I expected to fail. It didn't. Compare each output frame against the true 1080p
+original, aligning by best match inside a ±3 frame window first:</p>
+
+<table>
+  <thead>
+    <tr><th>Path</th><th>Mean PSNR vs ground truth</th><th>Minimum</th><th>Offset vs original</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>One-shot encode</td><td>47.08 dB</td><td>45.59 dB</td><td>0 frames</td></tr>
+    <tr><td>Split → enlarge each → concat</td><td>47.08 dB</td><td>45.55 dB</td><td>+1 frame</td></tr>
+  </tbody>
+</table>
+
+<p>Identical to two decimals, and the worst single-frame disagreement across the seam is <strong>0.22
+dB</strong> — below the noise floor of the comparison. Cutting on a keyframe does not produce a visible
+join. What it produces is one extra frame of video, and a segment that is longer than you asked for.</p>
+
+<p>Where the extra frame comes from, traced stage by stage: the segment muxer hands the re-encode a file
+whose video starts at <code>start_time 0.066016</code> while audio starts at <code>0.042993</code>. The
+0.023 s difference is shorter than a frame, so a constant-frame-rate re-encode rounds the clip up to
+cover it: 1200 frames in, 1201 out, 40.000 s → 40.033 s. Harmless for playback; it is the same
+rounding that turns a 30 s request into a 31 s file.</p>
+
+<div class="note">
+  <strong>What did not break.</strong> I also expected audio to drift across the join, because each
+  segment carries its own AAC priming. It does not. A 1 kHz click every integer second, run through the
+  split path, comes back with a constant <strong>21.3 ms</strong> offset at every click from the first
+  to the last — a fixed encoder delay, not a cumulative one. Concat does not stack it.
+</div>
+
+<h3>4 — The recipe, with the numbers that make it pass</h3>
+
+<p>If the cap is hard and you cannot re-encode, <code>-segment_time_delta</code> is the switch that fixes
+the boundary — it tells the muxer how far off the timestamp a keyframe may be and still be accepted.
+Measured on the same 40 s source, three keyframe grids:</p>
+
+<table>
+  <thead>
+    <tr><th>Source GOP</th><th>Recipe</th><th>Segments</th><th>Worst file</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1 s</td><td>plain <code>-segment_time 30</code></td><td>31.023 / 9.0</td><td class="no">31.023</td></tr>
+    <tr><td>1 s</td><td>+ <code>-segment_time_delta 1.0</code></td><td>30.023 / 10.0</td><td class="no">30.023</td></tr>
+    <tr><td>2 s</td><td>plain <code>-segment_time 30</code></td><td>32.023 / 8.0</td><td class="no">32.023</td></tr>
+    <tr><td>2 s</td><td>+ <code>-segment_time_delta 1.0</code></td><td>30.023 / 10.0</td><td class="no">30.023</td></tr>
+    <tr><td>8.333 s</td><td>plain <code>-segment_time 30</code></td><td>33.356 / 6.667</td><td class="no">33.356</td></tr>
+    <tr><td>8.333 s</td><td>+ <code>-segment_time_delta 1.0</code></td><td>33.356 / 6.667</td><td class="no">33.356</td></tr>
+  </tbody>
+</table>
+
+<p>Read the third block carefully: <strong>delta does nothing when the grid is coarser than your
+tolerance.</strong> On an 8.333 s grid the nearest keyframe to 30 s is 25.0 s or 33.3 s, so accepting a
+keyframe within 1.0 s of the boundary finds nothing and the file stays at 33.356. Delta tightens the
+cut by at most one tolerance width; it cannot manufacture a keyframe that is not there.</p>
+
+<p>So on a fine grid, delta gets you to 30.023 (0.023 s over — still over). On a coarse grid it gets you
+nothing. The recipe that is actually under the cap without re-encoding is still the margin:</p>
+
+<pre><code># worst case measured: 29.023 s on a 1 s grid. Use 28 for 1 s of headroom.
+ffmpeg -i input.mp4 -c copy -f segment -segment_time 28 -reset_timestamps 1 seg-%03d.mp4
+
+# verify before uploading - this is the step that catches the 31 s file
+for f in seg-*.mp4; do
+  d=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f")
+  awk -v d="$d" -v f="$f" 'BEGIN{ if (d+0 &gt; 30) printf "OVER  %s  %.3f\n", f, d }'
+done
+
+# rejoin without a second encode
+printf "file '%s'\n" seg-*.mp4 &gt; list.txt
 ffmpeg -f concat -safe 0 -i list.txt -c copy output.mp4</code></pre>
+
+<p>If you <em>can</em> re-encode, 30.000 exactly is reachable — but not the way it is usually written. Two
+recipes that look right both fail on measurement. Forcing keyframes inside one <code>-f segment</code>
+command gives a <strong>38.356 s</strong> first file, because the segmenter evaluates its boundaries
+against the encode's own clock and never sees the forced flag as a keyframe. Force-then-remux with
+<code>-segment_time_delta</code> fixes the frame count — 900 frames, exactly 30.000 s of video — but the
+container still reports <strong>30.023 s</strong> because the segment's stream starts at
+<code>start_time 0.066016</code> instead of 0, and neither <code>-avoid_negative_ts make_zero</code> nor
+<code>-copyts</code> changes that (both measured, both still 30.023).</p>
+
+<p>What does work is cutting each segment yourself with <code>-ss</code> and <code>-t</code>. A fresh
+encode per segment starts its own timeline at zero, so nothing is offset:</p>
+
+<pre><code># one encode per segment - exact 30.000 s, verified on 1 s, 2 s and 8.333 s grids
+total=$(ffprobe -v error -show_entries format=duration -of csv=p=0 input.mp4)
+n=$(awk -v t="$total" 'BEGIN{print int((t+29.999)/30)}')
+for i in $(seq 0 $((n-1))); do
+  ffmpeg -y -i input.mp4 -ss $((i*30)) -t 30 \
+    -vf scale=1080:608:flags=lanczos -c:v libx264 -crf 18 -pix_fmt yuv420p \
+    -c:a aac seg-$(printf %03d $i).mp4
+done
+
+# rejoin - also an encode-free remux
+printf "file '%s'\n" seg-*.mp4 &gt; list.txt
+ffmpeg -f concat -safe 0 -i list.txt -c copy output.mp4</code></pre>
+
+<p>Measured worst file across the three source grids: <strong>30.000 s</strong>, 3/3. The price is a full
+encode of the whole clip — measured at <strong>2.57× realtime</strong> to enlarge 540p→1080p
+(40.0 s clip, 15.54 s wall, best of 3 runs). That is the trade the no-re-encode recipe exists to avoid:
+you get an exact boundary, and you pay for it in compute.</p>
+
+<p>If you would rather not manage any of this, <a href="https://upgolab.com">UpgoLAB</a> takes the
+whole file and runs the enlargement on its own GPUs, so the 30 second limit is the only boundary you
+have to feed it.</p>
 
 <h2>Results at 100% crop</h2>
 <figure>
@@ -175,7 +370,7 @@ ffmpeg -f concat -safe 0 -i list.txt -c copy output.mp4</code></pre>
 <h2>Frequently asked</h2>
 
 <h3>What is the best free alternative to Topaz Video AI?</h3>
-<p>Depends on clip length and hardware. Clips under 30 seconds with no local GPU: <a href="https://upgolab.com">UpgoLAB</a> is free and runs in the browser. Long video on your own machine: Video2X is free and open source but needs a Vulkan GPU. Windows users who only need light cleanup already have Clipchamp.</p>
+<p>Depends on clip length and hardware. Clips under 30 seconds with no local GPU: UpgoLAB is free and runs in the browser. Long video on your own machine: Video2X is free and open source but needs a Vulkan GPU. Windows users who only need light cleanup already have Clipchamp.</p>
 
 <h3>Can a browser tool really replace Topaz Video AI?</h3>
 <p>Not for long-form work. Topaz handles 40 minute timelines with per-clip model choice and mature motion handling. A browser tool covers the common case instead: a short clip damaged by messaging app compression, fixed without installing anything or owning a GPU.</p>
@@ -190,10 +385,10 @@ ffmpeg -f concat -safe 0 -i list.txt -c copy output.mp4</code></pre>
 <p>Video2X focuses on video frames and can also interpolate frame rate. Audio is typically remuxed afterwards. Check current documentation for your build — behaviour has changed across versions.</p>
 
 <h3>What about the 30 second limit?</h3>
-<p>It is a real constraint, not a marketing choice. For longer files you split at keyframes with the FFmpeg commands above, process each segment, then rejoin without re-encoding. The seam is invisible when you cut on keyframes.</p>
+<p>It is a real constraint, not a marketing choice. For longer files you split at keyframes, process each segment, then rejoin without re-encoding. Two measured caveats: the seam is genuinely invisible (0.22 dB worst-case difference from a one-shot encode), but the segments are not the length you ask for. On a normal B-frame encode, <code>-segment_time 30</code> produces a 31.0 second first file. Use 28 and verify each segment before uploading.</p>
 
 <footer>
-  <p>Written by the team behind <a href="https://upgolab.com">UpgoLAB</a>, which is one of the options compared here. Corrections welcome — if a claim about Video2X, Clipchamp or Topaz is wrong, say so and it gets fixed.</p>
+  <p>Written by the team behind UpgoLAB, which is one of the options compared here. Corrections welcome — if a claim about Video2X, Clipchamp or Topaz is wrong, say so and it gets fixed.</p>
   <p>Related: <a href="https://celticgemini001.github.io/upgolab-tools/compare.html">full four-way comparison</a> · <a href="https://celticgemini001.github.io/upgolab-tools/">notes on the denoise-then-enlarge order</a> · <a href="https://dev.to/celticgemini001/denoise-before-upscale-the-ordering-mistake-and-why-2x-is-the-ceiling-n7m">technical write-up on dev.to</a></p>
 </footer>
 
