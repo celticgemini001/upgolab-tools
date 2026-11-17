@@ -163,8 +163,15 @@ A service that rejects files over 30 s rejects it.</p>
 
 <p><code>-segment_time</code> is a request, not a guarantee. With <code>-c copy</code> the muxer
 can only open a new file where a keyframe exists, so it waits for the first keyframe at or after
-the boundary. If keyframes sit on a fixed grid of <em>g</em> seconds starting at zero, the first
-segment is therefore <code>30 + ((-30) mod g)</code> seconds.</p>
+the boundary. If keyframes sit on a fixed grid of <em>g</em> seconds starting at zero <em>and the
+clip has no B-frames</em>, the first segment is therefore <code>30 + ((-30) mod g)</code> seconds.</p>
+
+<p>A correction added after further measurement: that expression assumes <code>first_dts = 0</code>.
+Every default x264 encode has B-frames, which push the first DTS negative (−0.0667 s at 30 fps), and
+the muxer compares against that shifted clock — so the bound becomes
+<code>g × ceil((30 + |first_dts|) / g)</code>. On a 1 s grid with B-frames the first segment is
+<strong>31.0 s</strong>, not 30.0, and the full measurement is on
+<a href="/upgolab-tools/topaz-alternative.html">the 30-second limit page</a>.</p>
 
 <p>For <em>g</em> = 7 that is 30 + 5 = 35. For <em>g</em> = 4 it is 32, for 8 it is 32, for 12 it
 is 36. When the grid divides 30 evenly (1, 2, 3, 5, 6, 10) the formula returns 30 and the recipe
