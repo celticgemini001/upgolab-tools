@@ -42,6 +42,14 @@
         "@type": "Answer",
         "text": "At most 2x per axis. Past roughly 2x the model stops reconstructing and starts inventing detail, which reads as waxy skin and fake text. A 540p source at 2x lands at 1080p, which is enough for anything watched on a screen."
       }
+    },
+    {
+      "@type": "Question",
+      "name": "Why does my upscaled photo look worse than the original?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Usually one of three things: denoising after enlarging, which amplifies compression blocks before removing them; one model used for both night grain and line art, which have opposite requirements; or judging quality at fit-to-window instead of 100% on an edge."
+      }
     }
   ]
 }
@@ -85,7 +93,7 @@
 
 <h2>Quick answer</h2>
 <ul>
-  <li><strong>No GPU, no install, short clip</strong> → <a href="https://upgolab.com">UpgoLAB</a> (browser, free during launch)</li>
+  <li><strong>No GPU, no install, short clip</strong> → UpgoLAB (browser, free during launch)</li>
   <li><strong>Have a GPU, photos only</strong> → Upscayl (open source, local)</li>
   <li><strong>Have a GPU, long video</strong> → Video2X (open source, local)</li>
   <li><strong>Professional long-form work, willing to pay</strong> → Topaz Video AI</li>
@@ -139,14 +147,151 @@
   <strong>Compression noise is not grain.</strong> Compression imposes a regular block grid; sensor grain is random. A generic denoiser treats the grid as noise and leaves it in place, then the upscaler amplifies it. Fixing the order changed results more than switching models ever did.
 </div>
 
-<h2>Splitting a clip over 30 seconds</h2>
-<p>Cut at keyframes so the source is not re-encoded:</p>
-<pre><code>ffmpeg -ss 00:01:12 -to 00:01:38 -i input.mp4 -c copy segment.mp4</code></pre>
-<p>Batch split:</p>
-<pre><code>ffmpeg -i input.mp4 -c copy -f segment -segment_time 30 -reset_timestamps 1 seg-%03d.mp4</code></pre>
-<p>Rejoin without a second encode:</p>
-<pre><code>printf "file '%s'\n" seg-*.mp4 &gt; list.txt
-ffmpeg -f concat -safe 0 -i list.txt -c copy output.mp4</code></pre>
+<h2>Splitting a clip over 30 seconds — measured, and the usual recipe is wrong</h2>
+
+<p>This page used to say: "Cut at keyframes so the source is not re-encoded." That is half
+right, and the half that is wrong is the half that matters when the tool you are feeding has a
+hard 30-second limit. I ran the exact command from this page against controlled sources and
+measured what comes out.</p>
+
+<p>Short version: <code>-c copy -f segment -segment_time 30</code> keeps every frame, and
+rejoining it gives back a frame-identical file. It also does not produce 30-second segments.
+On a 90-second source with keyframes every 7 seconds the first file is <strong>35.0 seconds</strong>.
+A service that rejects files over 30 s rejects it.</p>
+
+<h3>Why: the segmenter cuts at the next keyframe, not at the timestamp</h3>
+
+<p><code>-segment_time</code> is a request, not a guarantee. With <code>-c copy</code> the muxer
+can only open a new file where a keyframe exists, so it waits for the first keyframe at or after
+the boundary. If keyframes sit on a fixed grid of <em>g</em> seconds starting at zero, the first
+segment is therefore <code>30 + ((-30) mod g)</code> seconds.</p>
+
+<p>For <em>g</em> = 7 that is 30 + 5 = 35. For <em>g</em> = 4 it is 32, for 8 it is 32, for 12 it
+is 36. When the grid divides 30 evenly (1, 2, 3, 5, 6, 10) the formula returns 30 and the recipe
+looks like it works — which is why nobody notices. I fitted that expression on GOP 1–12, then
+tested it on GOP 9, 11 and 13, which were not in the fit: <strong>3/3 matched to 0.00 s</strong>
+(36.0, 33.0, 39.0).</p>
+
+<table>
+  <thead>
+    <tr><th>Keyframe interval</th><th>Predicted 1st segment</th><th>Measured segments</th><th>Worst file</th><th>Over 30 s</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>1 s</td><td>30.0</td><td>30.0 / 30.0 / 30.0</td><td class="yes">30.0</td><td>0.0%</td></tr>
+    <tr><td>2 s</td><td>30.0</td><td>30.0 / 30.0 / 30.0</td><td class="yes">30.0</td><td>0.0%</td></tr>
+    <tr><td>3 s</td><td>30.0</td><td>30.0 / 30.0 / 30.0</td><td class="yes">30.0</td><td>0.0%</td></tr>
+    <tr><td>4 s</td><td>32.0</td><td>32.0 / 28.0 / 30.0</td><td class="no">32.0</td><td>+6.7%</td></tr>
+    <tr><td>5 s</td><td>30.0</td><td>30.0 / 30.0 / 30.0</td><td class="yes">30.0</td><td>0.0%</td></tr>
+    <tr><td>6 s</td><td>30.0</td><td>30.0 / 30.0 / 30.0</td><td class="yes">30.0</td><td>0.0%</td></tr>
+    <tr><td>7 s</td><td>35.0</td><td>35.0 / 28.0 / 27.0</td><td class="no">35.0</td><td>+16.7%</td></tr>
+    <tr><td>8 s</td><td>32.0</td><td>32.0 / 32.0 / 26.0</td><td class="no">32.0</td><td>+6.7%</td></tr>
+    <tr><td>10 s</td><td>30.0</td><td>30.0 / 30.0 / 30.0</td><td class="yes">30.0</td><td>0.0%</td></tr>
+    <tr><td>12 s</td><td>36.0</td><td>36.0 / 24.0 / 30.0</td><td class="no">36.0</td><td>+20.0%</td></tr>
+  </tbody>
+</table>
+
+<p>Source: 90.0 s, 25 fps, 2250 frames, 320×180, keyframes forced onto a fixed grid so the one
+variable under test is isolated. All 2250 frames appear in every run — 2250 in, 2250 out — so
+this is not truncation. It is a boundary problem.</p>
+
+<h3>The case that actually bites: encoder defaults count frames, not seconds</h3>
+
+<p>x264's default is <code>-g 250</code> — 250 <em>frames</em>. At 25 fps that is a 10 s grid,
+which happens to divide 30, so the recipe appears to work. At 30 fps the same default gives an
+8.33 s grid, 30 is not a multiple of 8.33, and every segment comes out 33.33 s:</p>
+
+<table>
+  <thead>
+    <tr><th>fps</th><th>Keyframe grid (250 frames)</th><th>Segments produced</th><th>Worst file</th><th>Over 30 s</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>24</td><td>10.42 s</td><td>31.25 / 31.25 / 12.50</td><td class="no">31.25 s</td><td>+4.2%</td></tr>
+    <tr><td>25</td><td>10.00 s</td><td>30.00 / 30.00 / 15.00</td><td class="yes">30.00 s</td><td>0.0%</td></tr>
+    <tr><td>30</td><td>8.33 s</td><td>33.33 / 33.33 / 8.33</td><td class="no">33.33 s</td><td>+11.1%</td></tr>
+  </tbody>
+</table>
+
+<p>Two of the three fail, and 30 fps is what phone and screen-recording output usually uses.
+Nothing warns you: <code>ffmpeg</code> exits 0.</p>
+
+<h3>Scene-cut keyframes are worse, because the grid is irregular</h3>
+
+<p>Real footage does not have a fixed GOP. With x264's default scenecut detection, keyframe gaps
+on a 71 s clip with six hard scene changes measured 10, 2, 9, 10, 4, 10, 1, 10, 3, 10 seconds —
+mean 6.9 s, max 10 s. A 30 s split over that grid produced <strong>31.0 / 38.0 / 2.0</strong>
+seconds. The 38-second file is 26.7% over the cap, and no single constant subtracted from 30 fixes
+an irregular grid.</p>
+
+<h3>Three fixes, and what each one costs</h3>
+
+<p>Same 90 s, GOP 7 s source in all three. "Undecodable" counts frames that are present in the
+file but cannot be decoded when the segment is opened on its own.</p>
+
+<table>
+  <thead>
+    <tr><th>Approach</th><th>Segments (s)</th><th>Audio per file (s)</th><th>Undecodable frames</th><th>Verdict</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-c copy</code></td><td>35.0 / 28.0 / 27.0</td><td>34.95 / 27.93 / 27.00</td><td class="yes">0</td><td>fails the cap</td></tr>
+    <tr><td><code>-c copy -break_non_keyframes 1</code></td><td>29.96 / 25.00 / 27.00</td><td>29.91 / 29.85 / 29.92</td><td class="no">201 (8.04 s)</td><td>silent freeze</td></tr>
+    <tr><td>re-encode, force keyframes on 30 s</td><td>30.00 / 30.00 / 30.00</td><td>29.95 / 29.93 / 30.00</td><td class="yes">0</td><td>works</td></tr>
+  </tbody>
+</table>
+
+<p><code>-break_non_keyframes 1</code> is the fix you find in every forum thread, and it is the
+worst of the three. It keeps all 2250 packets, so file sizes and packet counts look perfect, but
+segments 2 and 3 now begin on a P-frame. A player opening that file has nothing to decode
+against: it holds the keyframe's picture while the audio runs 5.04 s and 3.00 s ahead. The file
+is not corrupt, it will not error, and it is not usable. That is why the "undecodable" column
+exists — packet count alone says the split was clean.</p>
+
+<p>The only approach that satisfies a 30 s cap without losing anything is a re-encode with
+keyframes forced onto the boundary:</p>
+
+<pre><code>ffmpeg -i input.mp4 -c:v libx264 -preset veryfast -crf 20 \
+  -g 30 -keyint_min 30 -sc_threshold 0 \
+  -force_key_frames "expr:gte(t,n_forced*30)" -c:a copy ready.mp4
+
+ffmpeg -i ready.mp4 -c copy -f segment -segment_time 30 -reset_timestamps 1 seg-%03d.mp4</code></pre>
+
+<p>Which means the premise of "split without re-encoding" is gone: you re-encode first, then
+copy-split. Measured cost at <code>-crf 20 -preset veryfast</code>, 60 s of 30 fps source:
+10.25 s for 720p (5.9× realtime) and 19.94 s for 1080p (3.0× realtime); output 1.15× and 1.14×
+the source size. Quality against the original: PSNR 43.61 dB, SSIM 0.9949.</p>
+
+<h3>If you cannot re-encode, subtract one keyframe interval and ship</h3>
+
+<p>When the source must stay untouched, ask for less than 30 s. On the fixed 7 s grid,
+<code>-segment_time 26</code> gives 4 files whose worst is 28.0 s; 30 s gives 3 files whose worst
+is 35.0 s. Both keep every frame and rejoin frame-identically — 2250 in, 2250 out, and a frame
+hash of the reassembly equalled the source, so the seam is genuinely invisible. On the irregular
+scene-cut clip, dropping to 20 s gave a worst file of 24.0 s and a reassembly that was still
+frame-identical (1775/1775). You pay in file count, not in quality.</p>
+
+<pre><code># subtract one keyframe interval, then rejoin and check the seam
+ffmpeg -i input.mp4 -c copy -f segment -segment_time 26 -reset_timestamps 1 seg-%03d.mp4
+printf "file '%s'\n" seg-*.mp4 &gt; list.txt
+ffmpeg -f concat -safe 0 -i list.txt -c copy output.mp4
+
+# frame hashes only - timestamps legitimately shift, picture content must not
+diff &lt;(ffmpeg -v error -i input.mp4  -map 0:v -f framemd5 - | awk -F, '!/^#/{print $NF}') \
+     &lt;(ffmpeg -v error -i output.mp4 -map 0:v -f framemd5 - | awk -F, '!/^#/{print $NF}') \
+  &amp;&amp; echo seam-identical</code></pre>
+
+<div class="note">
+  <strong>What "invisible seam" actually means here.</strong> I checked it rather than assumed
+  it: copy-split files concatenated back to a stream frame-identical to the source — all 2250
+  frames, same order, no duplicates. The claim on this page that cutting on keyframes hides the
+  join was correct. The claim that <code>-segment_time 30</code> yields 30-second files was not,
+  and that was the one the workflow depended on.
+</div>
+
+<p>The practical rule: never ship a split you have not measured. One <code>ffprobe</code> per
+file is enough — <code>ffprobe -v error -select_streams v:0 -show_entries frame=pts_time -of
+csv=p=0 seg-000.mp4 | tail -1</code> prints the last timestamp, which is the only number the
+receiving service will look at.</p>
+
+<p>If you would rather not run any of this, <a href="https://upgolab.com">UpgoLAB</a> takes the whole file and does the enlargement on its own GPUs, so the 30 second limit is the only boundary you have to feed it.</p>
 
 <h2>Results at 100% crop</h2>
 <p>Each of these is the model output, not a marketing render:</p>
@@ -174,7 +319,7 @@ ffmpeg -f concat -safe 0 -i list.txt -c copy output.mp4</code></pre>
 <h2>Frequently asked</h2>
 
 <h3>What is the best free AI upscaler that runs in a browser?</h3>
-<p><a href="https://upgolab.com">UpgoLAB</a> runs entirely in the browser with no install and no local GPU. Photos up to 4 MP, video clips up to 30 seconds, enlarging to 2K or 4K. Free during launch, no watermark.</p>
+<p>UpgoLAB runs entirely in the browser with no install and no local GPU. Photos up to 4 MP, video clips up to 30 seconds, enlarging to 2K or 4K. Free during launch, no watermark.</p>
 
 <h3>Is there a free alternative to Topaz Video AI?</h3>
 <p>For short clips, UpgoLAB is free and needs no GPU. For long video on your own hardware, Video2X is free and open source but needs a Vulkan GPU. Neither matches Topaz on long-form work, but both cover the common case.</p>
@@ -189,7 +334,7 @@ ffmpeg -f concat -safe 0 -i list.txt -c copy output.mp4</code></pre>
 <p>Usually one of three things: denoising after enlarging (blocks already amplified), a single model used for both night grain and line art (opposite requirements), or judging quality at fit-to-window instead of 100% on an edge.</p>
 
 <footer>
-  <p>Written by the team behind <a href="https://upgolab.com">UpgoLAB</a>. Comparison current as of 2026-11-09. Corrections welcome — if a claim here is wrong about Upscayl, Video2X or Topaz, say so and it gets fixed.</p>
+  <p>Written by the team behind UpgoLAB. Comparison current as of 2026-11-17. Corrections welcome — if a claim here is wrong about Upscayl, Video2X or Topaz, say so and it gets fixed.</p>
   <p><a href="https://celticgemini001.github.io/upgolab-tools/">Notes on the denoise-then-enlarge order</a></p>
 </footer>
 
