@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Upscaling anime and line art without ruining the lines</title>
-<meta name="description" content="Line art needs the opposite treatment of a photo. Here is why generic upscalers turn anime into mush, what a 2D preset does differently, and the order that keeps edges hard.">
+<meta name="description" content="Measured: line art survives up to 4x, and a screentone at 6px pitch keeps 95-100% of its dot depth. The damage is sub-pixel phase, fractional-factor nearest, and clipping. Numbers and the script to reproduce them.">
 <link rel="canonical" href="https://celticgemini001.github.io/upgolab-tools/anime-upscale.html">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
@@ -225,6 +225,235 @@ for name, k in [('bilinear', Image.BILINEAR), ('lanczos', Image.LANCZOS)]:
   <li>Denoise before enlarging when the source is JPEG, and check the thinnest stroke, not an average — thin strokes take 68% of the width error that 4 px strokes do not.</li>
   <li>Never compare a sharpened upscale to a soft reference and call it better. Against a native render, the sharpened version is both darker and less even.</li>
 </ol>
+
+<h2 id="screentone">What an upscale actually does to a screentone</h2>
+
+<p>Line art is only half of an anime frame. The other half is screentone — the dot lattice
+used for shading — and the standing advice is that any resize wrecks it, so you must descreen
+before you enlarge. That advice is right in one specific case and wrong in the case most
+people are actually in. The difference is screen pitch, and it is measurable on a few
+hundred lines of numpy.</p>
+
+<h3>The fixture, and a correction to my own first attempt</h3>
+
+<p>Synthetic, because a real frame cannot give you a ground truth: dots on a rotated square
+lattice, screen angle 15°, pitch 6 px, ink coverage 50%, which makes the dot radius
+√(0.5 × 36 / π) = 2.394 px. The pattern is rendered at 8× and then area-averaged down to
+300×300, so the source has correct partial coverage instead of aliased hard edges.</p>
+
+<p>The lattice geometry is where my first run of this measurement went wrong, and it is worth
+stating because the error is invisible in the output. Dots sit at <code>u, v = (k+½)p</code>
+in the rotated frame and the bare paper between four dots sits at <code>u, v = k p</code>,
+where <code>u = x·cos θ + y·sin θ</code>. The pattern is anchored to the pixel origin. My
+first script sampled around the image centre instead, which walks off the lattice as you
+move outward: it printed −111.6 levels at pitch 2.5 px and +18.7 at pitch 4.0 px for what
+should be the same quantity, sign flips included. If a screentone measurement gives you a
+negative or near-zero depth, the sampling is wrong, not the image.</p>
+
+<p>The check that the sampling is right: run it on the 8× render before averaging. Every dot
+there is binary, so the depth must read the full 255 levels. It does, at every pitch from
+2.5 px up.</p>
+
+<table>
+  <thead><tr><th>Pitch</th><th class="num">GT depth</th><th class="num">Source depth</th><th class="num">% of GT</th><th class="num">Source dot CV</th></tr></thead>
+  <tbody>
+    <tr><td>2.0 px</td><td class="num">255.0</td><td class="num">23.9</td><td class="num">9%</td><td class="num">7.75%</td></tr>
+    <tr><td>2.5 px</td><td class="num">255.0</td><td class="num">82.5</td><td class="num">32%</td><td class="num">4.84%</td></tr>
+    <tr><td>3.0 px</td><td class="num">255.0</td><td class="num">142.1</td><td class="num">56%</td><td class="num">2.44%</td></tr>
+    <tr><td>4.0 px</td><td class="num">255.0</td><td class="num">221.5</td><td class="num">87%</td><td class="num">0.63%</td></tr>
+    <tr><td>6.0 px</td><td class="num">255.0</td><td class="num">254.1</td><td class="num">100%</td><td class="num">0.02%</td></tr>
+  </tbody>
+</table>
+
+<p>Depth is paper corner minus dot centre in 8-bit levels; CV is the coefficient of variation
+of ink mass over individual lattice cells. Read the bottom row and the top row as two
+different problems. At 6 px the source already holds the entire screen, and there is nothing
+for an upscaler to lose. At 2 px the source holds 9% of it — the screen is at Nyquist and the
+samples are looking at nearly flat grey. Those two rows behave nothing alike, which is why
+"does upscaling ruin screentone" has no single answer.</p>
+
+<h3>Where the screen is well sampled, it survives — 95% to 100%</h3>
+
+<p>At pitch 6 px, measuring the same corner-minus-centre depth on the upscaled output against
+ground truth: nearest 100.0%, bilinear 100.0%, bicubic 100.0%, Lanczos 94.9% at 4×. Lanczos
+is the only kernel that loses anything, and it loses 5% of the depth — the same overshoot
+that makes it look crisp on edges is shaving the top off the dots. Per-dot ink mass tells the
+same story from the other side: source floor 0.017%, output 0.21% for nearest, 0.54% for
+bicubic, 0.86% for Lanczos. And at the patch level — ink mass over a 4×4 block of dots, which
+is what the eye integrates — every kernel lands on the source's own floor of 0.280% at every
+integer factor. There is no blotching to see. For a screen at 5 px pitch or coarser, descreening
+before the upscale buys you nothing you can measure.</p>
+
+<h3>The one thing that does move: 1.26 levels of brightness</h3>
+
+<p>Mean tone is the number someone would check first, and it does drift — always in the same
+direction, always by about the same amount regardless of scale factor:</p>
+
+<table>
+  <thead><tr><th>Factor</th><th class="num">Nearest</th><th class="num">Bilinear</th><th class="num">Bicubic</th><th class="num">Lanczos</th></tr></thead>
+  <tbody>
+    <tr><td>1.25×</td><td class="num">+0.01</td><td class="num">+0.08</td><td class="num">+0.88</td><td class="num">+1.26</td></tr>
+    <tr><td>2×</td><td class="num">−0.00</td><td class="num">+0.20</td><td class="num">+0.96</td><td class="num">+1.35</td></tr>
+    <tr><td>3×</td><td class="num">−0.00</td><td class="num">−0.00</td><td class="num">+0.83</td><td class="num">+1.19</td></tr>
+    <tr><td>4×</td><td class="num">−0.00</td><td class="num">+0.10</td><td class="num">+0.88</td><td class="num">+1.26</td></tr>
+  </tbody>
+</table>
+
+<p class="meta">Levels of brightness drift, positive = the output is lighter than the source.</p>
+
+<p>It is not a kernel property, and it is not rounding. The same resize in floating point
+mode — no 8-bit output stage — drifts by 0.00 levels for every kernel. A flat 128 field
+resizes to 128.000 for all four. What produces the shift is clipping: Lanczos overshoots
+below 0 on 18.4% of the output pixels, contributing +2.57 levels of brightness, and above 1
+on 14.0%, contributing −1.38 levels of darkness. The two do not cancel, because the
+undershoot is deeper than the overshoot is tall, and everything outside [0, 255] gets pinned
+to the boundary. Bicubic has the same imbalance at smaller magnitude: 19.1% under at +1.60
+against 13.3% over at −0.78, netting +0.82 predicted and +0.96 measured.</p>
+
+<p>Half a percent of brightness is not visible, and if that were the whole story you could
+ignore it. It matters because it is the same clipping that produces the halo — the measurement
+just makes it a number instead of an adjective. If you are tiling or stacking many resizes,
+1.26 levels per pass compounds.</p>
+
+<h3>Nearest-neighbour on a fractional factor is where blotching actually comes from</h3>
+
+<p>The per-dot numbers above are all at integer factors, and at integer factors nearest is
+the cleanest kernel there is — 0.19% at 2× against Lanczos at 0.93%. Move to a fractional
+factor and nearest falls apart:</p>
+
+<table>
+  <thead><tr><th>Factor</th><th class="num">Nearest</th><th class="num">Bilinear</th><th class="num">Bicubic</th><th class="num">Lanczos</th></tr></thead>
+  <tbody>
+    <tr><td>1.1×</td><td class="num">13.65%</td><td class="num">0.77%</td><td class="num">1.16%</td><td class="num">0.94%</td></tr>
+    <tr><td>1.25×</td><td class="num">2.80%</td><td class="num">0.87%</td><td class="num">0.65%</td><td class="num">0.90%</td></tr>
+    <tr><td>1.5×</td><td class="num">3.34%</td><td class="num">0.32%</td><td class="num">0.59%</td><td class="num">0.91%</td></tr>
+    <tr><td>2×</td><td class="num">0.19%</td><td class="num">0.21%</td><td class="num">0.54%</td><td class="num">0.93%</td></tr>
+    <tr><td>4×</td><td class="num">0.21%</td><td class="num">0.17%</td><td class="num">0.54%</td><td class="num">0.86%</td></tr>
+  </tbody>
+</table>
+
+<p class="meta">Per-dot ink mass CV, %. Source floor 0.017% — anything near it is measurement noise.</p>
+
+<p>At 1.1× nearest is 800× the source floor: it duplicates whole pixel columns, so some dots
+get an extra column and some get none, and the flat tone becomes a lattice of slightly wrong
+dots. A windowed kernel spreads the damage across neighbours instead, which is why Lanczos
+sits at 0.78–0.94% whether the factor is 1.1 or 4. At the 4×4-patch level nearest recovers
+to the source floor at every integer factor but stays at 1.57% at 1.1× and 1.05% at 1.5× —
+patch-scale unevenness you can see across a large fill, not just dot to dot.</p>
+
+<p>The rule that falls out: integer factor with nearest is fine, any factor with a windowed
+kernel is fine, fractional factor with nearest is the one combination to avoid. If a tool
+offers you "1.5×" and no choice of kernel, you are probably getting the bad cell.</p>
+
+<h3>At 2 px pitch the upscaler starts inventing, and that is the case to descreen</h3>
+
+<p>This is where the standard advice earns its keep, for a reason different from the one
+usually given. The source at 2 px pitch has 23.9 levels of depth — 9% of the screen that is
+physically there. Upscale it 4× with Lanczos and the output has 135.6 levels, 53% of ground
+truth. The upscaler produced 5.7× the contrast the source contained. Not recovered — produced.
+The correlation between the output and the ground truth at 2 px is 0.647, against 0.938 at
+6 px, so two thirds of that invented contrast is in roughly the right place and a third of it
+is a moiré pattern the original never had.</p>
+
+<table>
+  <thead><tr><th>Pitch</th><th class="num">Source depth</th><th class="num">4× Lanczos depth</th><th class="num">% of GT</th><th class="num">Correlation with GT</th></tr></thead>
+  <tbody>
+    <tr><td>2.0 px</td><td class="num">23.9</td><td class="num">135.6</td><td class="num">53%</td><td class="num">0.647</td></tr>
+    <tr><td>2.5 px</td><td class="num">82.5</td><td class="num">239.7</td><td class="num">94%</td><td class="num">0.807</td></tr>
+    <tr><td>3.0 px</td><td class="num">142.1</td><td class="num">253.5</td><td class="num">99%</td><td class="num">0.831</td></tr>
+    <tr><td>4.0 px</td><td class="num">221.5</td><td class="num">254.9</td><td class="num">100%</td><td class="num">0.887</td></tr>
+    <tr><td>6.0 px</td><td class="num">254.1</td><td class="num">242.1</td><td class="num">95%</td><td class="num">0.938</td></tr>
+  </tbody>
+</table>
+
+<p>Notice the non-monotonicity: % of ground truth climbs to 100% at pitch 4 and then falls
+back to 95% at pitch 6, because at 6 px it is the Lanczos overshoot shaving the dots rather
+than anything missing. Correlation climbs monotonically, which is the more meaningful column.</p>
+
+<h3>Descreen at about half a pixel, not more</h3>
+
+<p>A gaussian of σ = 0.5 px on the source, then 2× Lanczos, on the 6 px fixture: per-dot CV
+falls from 0.927% to 0.239%, dot depth rises from 243.9 to 249.2 levels (96% → 98% of ground
+truth), and the brightness drift falls from +1.35 to +0.07 levels. A small blur makes the
+result both more even <em>and</em> more faithful, because it removes the steepest local
+gradients before the kernel's overshoot gets to them, and there is less to clip.</p>
+
+<p>Past that it turns destructive fast. σ = 0.7 holds depth at 242.3, σ = 0.9 drops to 221.1
+(87%), σ = 1.2 to 162.7 (64%). By 1.2 the screen is half gone and no amount of upscaling gets
+it back, which is the failure mode behind every "I descreened and it went muddy" report. Half
+a pixel of blur is a repair; one pixel is a different picture.</p>
+
+<h3>JPEG has already made the dots uneven before you touch them</h3>
+
+<p>A real frame arrives as JPEG, so the fixture should too. Encode the 300 px source at
+descending quality, then 2× Lanczos:</p>
+
+<p>Per-dot CV goes 0.949% at q95 → 0.982% at q90 → 1.016% at q85 → 1.094% at q75 → 1.268% at
+q60 → 1.362% at q40. Patch-scale CV goes 0.282% → 0.364% over the same range, starting at
+the source floor and ending above it. So the unevenness at low quality is not created by the
+upscale; it is already in the file, and the upscale faithfully enlarges it. Denoising for
+block artifacts before the resize — the earlier section's advice — addresses this directly,
+and on the numbers here it is the only step that does.</p>
+
+<h3>Reproduce it</h3>
+
+<p>Self-contained, no input files, about twenty seconds.</p>
+
+<pre><code>import numpy as np
+from PIL import Image
+
+S, N, TH, P, INK = 8, 300, 15.0, 6.0, 0.5
+r = np.sqrt(INK * P * P / np.pi) * S          # dot radius in 8x px
+p = P * S
+yy, xx = np.mgrid[0:N*S, 0:N*S].astype(np.float32)
+u = (xx*np.cos(np.deg2rad(TH)) + yy*np.sin(np.deg2rad(TH))) % p - p/2
+v = (-xx*np.sin(np.deg2rad(TH)) + yy*np.cos(np.deg2rad(TH))) % p - p/2
+cov = np.zeros((N*S, N*S), np.float32)
+o = (np.arange(S) + 0.5) / S - 0.5
+for oy in o:
+    for ox in o:
+        cov += (u-ox)**2 + (v-oy)**2 &lt;= r*r
+hi = 1.0 - cov / (S*S)
+src = hi.reshape(N, S, N, S).mean(axis=(1, 3))   # correct partial coverage
+
+
+def sample(a, y, x):
+    """bilinear; a nearest lookup biases the depth upward by a level"""
+    y0, x0 = int(np.floor(y)), int(np.floor(x))
+    fy, fx = y - y0, x - x0
+    return (a[y0, x0]*(1-fy)*(1-fx) + a[y0+1, x0]*fy*(1-fx)
+            + a[y0, x0+1]*(1-fy)*fx + a[y0+1, x0+1]*fy*fx)
+
+
+def depth(a, pitch):
+    """paper corner minus dot centre, in 8-bit levels"""
+    h, w = a.shape
+    c, s = np.cos(np.deg2rad(TH)), np.sin(np.deg2rad(TH))
+    span = int(min(h, w) / pitch) - 2
+    cs, gs = [], []
+    for k in range(-span, span):
+        for m in range(-span, span):
+            for (ou, ov), st in (((0.5,0.5), cs), ((0.0,0.0), gs)):
+                U, V = (k+ou)*pitch, (m+ov)*pitch
+                x, y = U*c - V*s, U*s + V*c     # origin-anchored, NOT w/2
+                if 1 &lt;= x &lt; w-2 and 1 &lt;= y &lt; h-2:
+                    st.append(sample(a, y, x))
+    return (np.mean(gs) - np.mean(cs)) * 255
+
+
+u8 = (src * 255).round().astype(np.uint8)
+gt = depth(hi, P*S)                              # must print 255.0
+print("GT", round(gt, 1), "source", round(depth(src, P), 1))
+for f, k in ((4.0, Image.LANCZOS), (4.0, Image.NEAREST)):
+    out = np.asarray(Image.fromarray(u8).resize((int(N*f),)*2, k)) / 255
+    print(f, k, round(depth(out, P*f) / gt * 100, 1), "% of GT")
+</code></pre>
+
+<p>Expected: <code>GT 255.0 source 254.1</code>, then <code>94.9 % of GT</code> for Lanczos
+and <code>100.0 %</code> for nearest at 4×. If the ground-truth line does not read 255.0, the
+lattice sampling is off and every number above it is noise. Using a nearest lookup instead of
+<code>sample()</code> reads the source at 255.0 rather than 254.1 — one level, which is the
+size of the effect being measured, so the interpolation is not optional.</p>
 
 <h2>Frequently asked</h2>
 <h3>Why does AI upscaling ruin anime line art?</h3>
