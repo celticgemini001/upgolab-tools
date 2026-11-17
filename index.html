@@ -526,6 +526,16 @@ guides above. Same rule applies: if a number here disagrees with your own file, 
   <span class="metric">8/8 tags bit-exact · +0.73–0.89 dB · 55.6% AR error · 12.6 dB loss</span>
 </a>
 
+<a class="card" href="/upgolab-interlaced-video-upscale/">
+  <h3>Interlaced Video Before Upscaling: The 540-Line Ceiling</h3>
+  <p>At exactly 540 lines of vertical detail the even field of a 1080i frame measures a standard
+  deviation of 0.000 — one field is blank. bwdif and estdif return a complete null there; every
+  filter boosts 270-line detail by +1.8 to +2.5 dB it never lost. Deinterlacing first beats
+  upscaling first for four of five filters, and weaving without deinterlacing scores 11.05 dB
+  against yadif's 16.68.</p>
+  <span class="metric">540-line null · 908 of 1080 lines at −6 dB · 11.05 dB for no deinterlace · 3.32 dB for inverted field order</span>
+</a>
+
 
 
 <ul>
