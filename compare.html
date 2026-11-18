@@ -133,7 +133,7 @@
 <h3>Topaz Video AI — the paid benchmark</h3>
 <p>Best-in-class for long-form professional work, with model choice per clip and mature handling of motion. The reason to avoid it is cost, and the reason to consider it is a 40-minute timeline you need to deliver today.</p>
 
-<h2>The part nobody tells you: order matters more than tool</h2>
+<h2>The part nobody tells you: filter choice matters more than tool</h2>
 <p>Most guides say enlarge first. That makes the model learn the compression blocks and enlarge them too. The sequence that holds up:</p>
 <ol>
   <li>Denoise, targeting block artifacts rather than sensor grain</li>
@@ -144,7 +144,171 @@
 <p>Past roughly 2x the model switches from reconstructing to inventing. Faces go waxy and small text turns into strokes that look like letters but are not.</p>
 
 <div class="note">
-  <strong>Compression noise is not grain.</strong> Compression imposes a regular block grid; sensor grain is random. A generic denoiser treats the grid as noise and leaves it in place, then the upscaler amplifies it. Fixing the order changed results more than switching models ever did.
+  <strong>Compression noise is not grain.</strong> Compression imposes a regular block grid; sensor grain is random. A generic denoiser treats the grid as noise and leaves it in place, then the upscaler amplifies it. Fixing the order changed results more than switching models ever did. A later round of measurements on real photographs put a number on that claim and partly walks it back: the filter you choose moves the result by up to 2.2 dB, while the before/after ordering moves it by 0.02 dB. Both sets of numbers are below.
+</div>
+
+<h2>Does denoising before an upscale actually help? Measured, and the answer depends on one number</h2>
+
+<p>The advice "denoise before you enlarge" is repeated everywhere, and it is untested in most of
+the places it appears. It is also half wrong in a way that is easy to measure: a denoiser either
+uses the edge information to decide what to smooth (edge-preserving) or it does not (a box or
+median filter), and the two behave in opposite directions. I ran both against four real
+1080&times;1620 photographs, at seven JPEG qualities, with three noise seeds each.</p>
+
+<p>Setup, so you can repeat it: each 1080&times;1620 reference is downsampled 2&times; with Lanczos to
+540&times;810, re-compressed as JPEG at a chosen quality, and Gaussian noise (&sigma;=3) is added before
+compression. Every arm then enlarges back to 1080&times;1620 and is scored against the untouched
+original. Nothing is scored against a synthetic pattern &mdash; these are the same images used in
+the results section below. Source high-frequency energy after this degrade is <b>11.4%</b> of the
+reference, which is what a second-generation file actually looks like.</p>
+
+<table>
+  <tr><th>Arm (JPEG q32, 12 runs)</th><th>PSNR</th><th>&Delta; vs no filter</th><th>Runs won</th><th>Worst run</th></tr>
+  <tr><td>2&times; Lanczos, no denoise</td><td>28.784 dB</td><td>&mdash;</td><td>&mdash;</td><td>&mdash;</td></tr>
+  <tr><td>Bilateral 5&times;5 (&sigma;<sub>s</sub>=1.5, &sigma;<sub>r</sub>=14) &rarr; 2&times; Lanczos</td><td>29.115 dB</td><td class="yes">+0.332</td><td>12/12</td><td class="yes">+0.277</td></tr>
+  <tr><td>2&times; Lanczos &rarr; bilateral (same &sigma;)</td><td>29.138 dB</td><td class="yes">+0.355</td><td>12/12</td><td class="yes">+0.284</td></tr>
+  <tr><td>Median 3&times;3 &rarr; 2&times; Lanczos</td><td>26.927 dB</td><td class="no">&minus;1.856</td><td>0/12</td><td class="no">&minus;2.171</td></tr>
+  <tr><td>2&times; Lanczos &rarr; median 3&times;3</td><td>28.834 dB</td><td>+0.051</td><td>9/12</td><td>&minus;0.029</td></tr>
+</table>
+
+<p>Two results here are worth more than the averages. First, the edge-preserving filter wins in
+<b>12 of 12</b> runs and never loses, but only by a third of a decibel. Second, the median filter
+loses in <b>12 of 12</b> runs, by up to 2.17 dB &mdash; it is not a mild trade-off, it is the worst
+arm I tested. A 3&times;3 median removes the noise and the texture together, and the upscaler enlarges
+what is left. <b>Do not put a median filter in front of an upscaler.</b> That is the single
+actionable result of this section, and it is a negative one.</p>
+
+<h3>Why the order barely matters, and why that is the actual finding</h3>
+
+<p>If you denoise before enlarging, the filter works on twice as many pixels and has to decide
+what is noise from a source that has not been interpolated yet. After enlarging, the noise has
+already been smeared across 4&times; the area. Either way the decision is made from the same
+information. Measured, the gap is <b>+0.023 dB</b> in favour of filtering after the resize, spread
+over a range of +0.005 to +0.051 dB, and in 11 of 12 runs the two orders are within 0.05 dB of
+each other. That is below the run-to-run variation. Anyone claiming a meaningful ordering effect
+here is measuring noise.</p>
+
+<p>The cost is not symmetric though: bilateral at 540&times;810 costs one pass over a quarter of the
+pixels; at 1080&times;1620 it costs a pass over all of them. My naive NumPy implementation took
+1.53 s per image versus 0.15 s before the resize, which is a property of the implementation
+(Python-level windowing), not the algorithm &mdash; a compiled bilateral is ~30 ms at either size. If
+you are filtering thousands of frames, filter small.</p>
+
+<h3>The number the advice is missing: the source's compression quality</h3>
+
+<p>Here is why "denoise first" is sometimes excellent advice and sometimes actively harmful. The
+same bilateral filter, swept across JPEG quality, changes sign:</p>
+
+<table>
+  <tr><th>Source JPEG q</th><th>No filter</th><th>Bilateral</th><th>&Delta;</th><th>Median 3&times;3</th><th>&Delta;</th></tr>
+  <tr><td>95</td><td>31.792</td><td>31.492</td><td class="no">&minus;0.300</td><td>27.644</td><td class="no">&minus;4.148</td></tr>
+  <tr><td>85</td><td>31.299</td><td>31.207</td><td class="no">&minus;0.092</td><td>27.550</td><td class="no">&minus;3.749</td></tr>
+  <tr><td>75</td><td>30.790</td><td>30.849</td><td class="yes">+0.059</td><td>27.452</td><td class="no">&minus;3.339</td></tr>
+  <tr><td>60</td><td>30.104</td><td>30.290</td><td class="yes">+0.186</td><td>27.323</td><td class="no">&minus;2.781</td></tr>
+  <tr><td>45</td><td>29.525</td><td>29.787</td><td class="yes">+0.262</td><td>27.168</td><td class="no">&minus;2.357</td></tr>
+  <tr><td>32</td><td>28.816</td><td>29.137</td><td class="yes">+0.321</td><td>26.935</td><td class="no">&minus;1.881</td></tr>
+  <tr><td>20</td><td>27.731</td><td>28.088</td><td class="yes">+0.357</td><td>26.498</td><td class="no">&minus;1.233</td></tr>
+</table>
+
+<p>The crossover sits between q85 and q75. Above roughly <b>q85</b> the file is clean enough that
+any smoothing removes real detail and the filter costs you &minus;0.30 dB. Below <b>q75</b> the filter
+gains, and the gain grows monotonically as the source gets worse: +0.06 at q75, +0.32 at q32,
++0.36 at q20. The median filter never crosses over &mdash; it loses at every quality from 95 down to
+20, and its smallest loss (&minus;1.23 dB at q20) is still four times bigger than bilateral's
+largest win. So the rule is not "denoise before upscaling". It is: <b>find out what quality the
+source is, and only filter below ~q75, and only with an edge-preserving filter.</b></p>
+
+<div class="note">
+  <p><b>How to check in one command.</b> The quantisation table stored in the file tells you the
+  quality it was saved at. If the image is a screenshot, a messaging-app forward or a re-upload,
+  it is almost certainly below q75 &mdash; those pipelines re-compress aggressively. If it came
+  straight out of a camera or a raw converter, it is above 90 and you should skip the filter
+  entirely. Filtering a clean file is the more common mistake, and it is the one this test
+  penalises.</p>
+  <pre><code># quantisation table -> estimated quality, no full decode
+python3 - &lt;&lt;'EOF'
+from PIL import Image
+q = Image.open('source.jpg').quantization
+tables = sum(len(v) for v in q.values()) if q else 0
+print('luma[0..3]', list(q[0])[:4] if q and 0 in q else None)
+print('tables', tables)           # 2 tables = 4:2:0 chroma subsampling
+EOF</code></pre>
+</div>
+
+<h3>The blockiness number that agrees with itself and nothing else</h3>
+
+<p>I also measured 8-pixel blockiness &mdash; the ratio of pixel-to-pixel differences that land
+exactly on the JPEG block grid versus everywhere else. Ground truth scores <b>1.120</b>; the
+degraded-but-unfiltered upscale scores <b>1.541</b>. Median 3&times;3 brings it to <b>1.228</b>.
+Bilateral reaches <b>1.345</b>. A plain box blur reaches <b>1.062</b> &mdash; closer to the reference
+than any edge-preserving filter, and 2.49 dB worse by PSNR (26.297).</p>
+
+<p>So the metric that looks most like a deblocking score rewards the filter that destroys the
+most. If you tune a denoiser against blockiness alone you will converge on a blur, and the output
+will score well on the thing you measured and look flat. Same trap as the PSNR result in the
+kernel comparison above: the score is a proxy, and a proxy can be gamed by degrading the signal it
+is supposed to protect. Score against a reference when you can, and when you cannot, look at a
+100% crop of a hair edge before you ship.</p>
+
+<h3>And a second, unrelated measurement: do not enlarge to the next round number</h3>
+
+<p>While the harness was set up I used it to test something separate. If the correct enlargement
+is exactly 2&times; (540&times;810 to 1080&times;1620), is there any benefit to going past it &mdash; to 1188&times;1782,
+or 1350&times;2025, and letting a viewer downscale? No. Over the same four images:</p>
+
+<table>
+  <tr><th>Target width &times; height</th><th>Factor</th><th>PSNR</th><th>&Delta; vs native 2&times;</th><th>Cost</th></tr>
+  <tr><td>1080&times;1620 (native)</td><td>2.00</td><td>32.500</td><td>&mdash;</td><td>34 ms</td></tr>
+  <tr><td>1188&times;1782</td><td>2.20</td><td class="no">31.589</td><td class="no">&minus;0.911</td><td>46 ms</td></tr>
+  <tr><td>1269&times;1904</td><td>2.35</td><td>31.776</td><td>&minus;0.724</td><td>50 ms</td></tr>
+  <tr><td>1350&times;2025</td><td>2.50</td><td>31.911</td><td>&minus;0.589</td><td>56 ms</td></tr>
+  <tr><td>1620&times;2430</td><td>3.00</td><td>31.945</td><td>&minus;0.555</td><td>71 ms</td></tr>
+</table>
+
+<p>Two things are worth noticing. Overshooting by 10% to reach a familiar size is the <b>worst</b>
+point in the whole sweep &mdash; &minus;0.91 dB, worse than enlarging 50% past the target. The loss is not
+monotonic in the factor, which means the damage is coming from the round-trip resample ratio, not
+from the enlargement itself. And 3&times; never recovers what 2&times; had: it is still 0.55 dB down
+after being scaled back. Enlarge once, to the size you will actually display. Every extra
+interpolation step is a filter you did not ask for.</p>
+
+<p>Snippet for the arm that won, reproducible in about ten lines:</p>
+
+<pre><code>import numpy as np
+from PIL import Image
+from numpy.lib.stride_tricks import sliding_window_view as sw
+
+def bilateral(a, ss=1.5, sr=14.0, r=2):
+    x = a.astype(np.float64)
+    p = np.pad(x, ((r,r),(r,r),(0,0)), mode='edge')
+    w = sw(p, (2*r+1, 2*r+1, 3)).squeeze(2)          # H,W,5,5,C
+    yy, xx = np.mgrid[-r:r+1, -r:r+1]
+    ws = np.exp(-(yy**2 + xx**2) / (2*ss**2))        # spatial weight
+    wr = np.exp(-((w - x[:,:,None,None,:])**2) / (2*sr**2))   # range weight
+    W = ws[None,None,:,:,None] * wr
+    return np.clip((w*W).sum(axis=(2,3)) / W.sum(axis=(2,3)), 0, 255).astype(np.uint8)
+
+src = np.asarray(Image.open('source.jpg').convert('RGB'))
+out = Image.fromarray(bilateral(src)).resize(
+        (src.shape[1]*2, src.shape[0]*2), Image.LANCZOS)
+out.save('out.png')</code></pre>
+
+<p>One caveat I will not paper over: <b>&sigma;<sub>r</sub> is the parameter that decides whether this
+helps or hurts</b>, and I swept it rather than fixed it. At &sigma;<sub>r</sub>=40 the range term
+stops discriminating and the result falls to 28.701 dB &mdash; below doing nothing, because it has
+become a Gaussian blur in disguise. At &sigma;<sub>r</sub>=8 it thins to +0.151 dB. The usable
+window is roughly 8&ndash;24, with 14 the best of the six settings tested. Set it once from a crop
+you have looked at, not from a blog post, including this one.</p>
+
+<div class="note">
+  <p><b>What this means if you are feeding a service instead of a script.</b> You usually cannot
+  choose the denoiser or read out its parameters, so the only decision left is whether to
+  pre-condition the file at all. Based on the crossover above: if you know the file is a
+  re-upload, a screenshot or a messaging-app forward, pass it through an edge-preserving filter
+  first &mdash; the gain is reliable and grows with how badly it was compressed. If it came from the
+  camera, hand it over untouched. The browser-based tools apply their own content-specific presets
+  on the server, so the second-generation case is already handled there rather than in a local
+  script; the point of this measurement is that the first case should not be handed over raw.</p>
 </div>
 
 <h2>Splitting a clip over 30 seconds — measured, and the usual recipe is wrong</h2>
