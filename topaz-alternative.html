@@ -349,6 +349,147 @@ you get an exact boundary, and you pay for it in compute.</p>
 whole file and runs the enlargement on its own GPUs, so the 30 second limit is the only boundary you
 have to feed it.</p>
 
+<h2>A 10.4 s keyframe grid breaks the margin rule — and the audio says why</h2>
+
+<p>Everything above is measured on a source with a <strong>1 s</strong> keyframe grid. That is a
+convenient grid, and it is not the one you get from a phone, a screen recorder, or a default
+<code>-crf</code> encode. x264's default <code>keyint</code> is 250 frames, which at 23.976 fps is a
+keyframe every <strong>10.427 s</strong>. I ran the page's own margin table against a source shaped like
+that, and the advice inverts.</p>
+
+<p>Test source: 90.007 s, 1920-wide test pattern downscaled and encoded once with
+<code>libx264 -crf 20 -g 250</code> — 2,158 frames, nine keyframes at 0 / 10.427 / 20.854 / 31.281 /
+41.708 / 52.135 / 62.563 / 72.990 / 83.417 s. The 30 s cap is a hard constraint, so the question is
+which <code>-segment_time</code> clears it.</p>
+
+<h3>1 — The margin rule inverts</h3>
+
+<p>Same command as section 4 above: <code>-c copy -f segment</code>, no re-encode, only
+<code>-segment_time</code> changed:</p>
+
+<table>
+  <thead>
+    <tr><th><code>-segment_time</code></th><th>Segments</th><th>Worst file</th><th>Under 30 s?</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>28</td><td>3</td><td class="no">31.281</td><td>No — over by 1.281</td></tr>
+    <tr><td>25</td><td>4</td><td class="no">31.281</td><td>No</td></tr>
+    <tr><td>21</td><td>4</td><td class="no">31.281</td><td>No</td></tr>
+    <tr><td>20</td><td>5</td><td class="yes">20.854</td><td>Yes</td></tr>
+    <tr><td>19</td><td>5</td><td class="yes">20.854</td><td>Yes</td></tr>
+    <tr><td>15</td><td>6</td><td class="yes">20.854</td><td>Yes</td></tr>
+    <tr><td>12</td><td>7</td><td class="yes">20.854</td><td>Yes</td></tr>
+    <tr><td>10</td><td>9</td><td class="yes">10.427</td><td>Yes</td></tr>
+  </tbody>
+</table>
+
+<p><strong>28 is over the cap.</strong> So is 21. The number that works is <strong>20</strong> — a
+smaller <code>-segment_time</code> than the 1 s-grid case ever needed, not a larger one.</p>
+
+<p>The reason is that <code>-segment_time</code> is a floor, not a ceiling. The muxer cuts at the first
+keyframe at or after the boundary, so the file's length is the grid point it lands on, not the value you
+asked for:</p>
+
+<p class="note"><code>worst file ≈ G × ceil(-segment_time / G)</code>, where <code>G</code> is the
+keyframe interval in the same units. With <code>G = 10.427</code>: 28 → <code>10.427 × 3 =
+31.281</code>, and 20 → <code>10.427 × 2 = 20.854</code>.</p>
+
+<p>That is why 21 fails and 20 passes, and why the failure is not monotonic in the obvious direction:
+raising <code>-segment_time</code> from 20 to 21 pushes <code>ceil()</code> up by one step and the file
+jumps from 20.854 to 31.281 — <strong>10.4 s longer than the value you typed</strong>. Only a grid
+whose interval divides cleanly into your cap behaves the way the section above describes.</p>
+
+<h3>2 — Where the missing 17 seconds go: duplicate frames, counted</h3>
+
+<p>The margin table only shows the worst single file. The more damaging effect is on the rejoin, and it
+is easy to miss because <code>ffmpeg</code> exits 0 and the output plays. Naive split at 0 / 30 / 60 s
+with <code>-c copy</code>, then <code>concat -c copy</code>:</p>
+
+<table>
+  <thead>
+    <tr><th>Chunk</th><th>Requested</th><th>Video duration written</th><th>Frames</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>0</td><td>30.000</td><td>30.113</td><td>722</td></tr>
+    <tr><td>1</td><td>30.000</td><td class="no">39.248</td><td class="no">941</td></tr>
+    <tr><td>2</td><td>30.000</td><td class="no">37.871</td><td class="no">908</td></tr>
+    <tr><td colspan="2">Total vs 90.007 s source</td><td class="no">107.232 (+17.225 s)</td><td class="no">2.571 (+413 frames)</td></tr>
+  </tbody>
+</table>
+
+<p>Each chunk starts at the last keyframe <em>before</em> its cut point, so the content between that
+keyframe and the cut point is encoded into two different files. On rejoin you get it twice. Counting
+frames instead of trusting the container: <strong>2,158 frames in, 2,571 frames out, 413 duplicates</strong>
+— 17.2 s of the output is footage you already watched. This is not a rounding artifact; on a 10.4 s
+grid it is one fifth of the clip.</p>
+
+<h3>3 — And the audio does not stay with it</h3>
+
+<p>Duplicate frames change the video duration. They do not add audio, because each chunk carries the
+audio for its own span. So the two streams stop sharing a timeline, and the error accumulates per
+chunk. Measured with a marker file — one black-to-white flash on the exact frame at every integer
+second, and a 20 ms 1 kHz burst at the same instants — then each flash matched to its nearest burst:</p>
+
+<table>
+  <thead>
+    <tr><th>Path</th><th>Flash events</th><th>Mean A−V offset</th><th>Worst</th><th>Drift</th><th>Last 10 events</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Source (no split)</td><td>89</td><td>−21.6 ms</td><td>43.4 ms</td><td>−0.12 ms/s</td><td>−19.7 ms</td></tr>
+    <tr><td>Naive copy split + concat</td><td>108</td><td class="no">−155.6 ms</td><td class="no">260.5 ms</td><td class="no">−2.44 ms/s</td><td class="no">−236.8 ms</td></tr>
+    <tr><td>Segment muxer, keyframe grid forced</td><td>90</td><td>−41.3 ms</td><td class="yes">63.7 ms</td><td class="yes">−0.17 ms/s</td><td>−40.1 ms</td></tr>
+  </tbody>
+</table>
+
+<p>The source itself already sits at −21.6 ms: that is AAC encoder priming, constant, and you cannot
+remove it without re-encoding the audio. What matters is that it <strong>stays constant</strong> at
+−0.12 ms/s. The naive split turns it into <strong>−2.44 ms/s of accumulated drift</strong> — a quarter
+of a second late by the end of a 90 s clip, and it keeps growing linearly with the number of chunks.
+Note also the 108 flash events in row two instead of 89: the duplicated frames duplicate the flash too,
+so the marker file measures the frame duplication and the audio drift independently and they agree.</p>
+
+<h3>4 — The fix is at encode time, not at split time</h3>
+
+<p>You cannot repair this while splitting. A stream copy can only cut where a keyframe already is; the
+grid has to exist before you split. Force it when you encode, then the segmenter's cut points and the
+keyframes coincide exactly:</p>
+
+<pre><code># 1. force a keyframe grid at encode time. The grid must be BELOW your cap.
+#    29 s on a 30 s cap leaves ~1 s for the reorder offset.
+ffmpeg -i input.mp4 \
+  -force_key_frames "expr:gte(t,n_forced*29)" \
+  -c:v libx264 -crf 20 -pix_fmt yuv420p -c:a aac -b:a 128k encoded.mp4
+
+# 2. split with no re-encode. -reset_timestamps 1 restarts each file's own clock.
+ffmpeg -i encoded.mp4 -c copy -map 0 \
+  -f segment -segment_time 29 -segment_format mp4 -reset_timestamps 1 seg-%02d.mp4
+
+# 3. rejoin with no re-encode
+printf "file '%s'\n" seg-*.mp4 &gt; list.txt
+ffmpeg -f concat -safe 0 -i list.txt -c copy output.mp4</code></pre>
+
+<p>Measured on the same 90.007 s clip with the grid forced to 29 s: four chunks of <strong>29.029 /
+28.987 / 28.987 / 3.003 s</strong>, worst file <strong>29.029</strong> — under the cap on every chunk.
+<strong>2,158 frames in, 2,158 frames out, zero duplicates.</strong> Comparing the video streams frame
+by frame, all 2,158 <code>framemd5</code> hashes are identical to the pre-split file: the split and
+rejoin changed nothing at all in the picture, which is the whole point of using <code>-c copy</code>.</p>
+
+<p>The A/V offset in that path is −41.3 ms with a drift of −0.17 ms/s — flat, versus −2.44 ms/s for the
+naive path. The residual ~20 ms over the source baseline is measured, not modelled: it is
+there in the first chunk already and the per-second drift stays at −0.17 ms/s, so whatever produces it
+does not compound with segment count.</p>
+
+<p>What the forced grid costs: almost nothing. Encoding the probe clip three ways in a single generation
+each — default (9 keyframes, 10.427 s apart, 10.94 MB), a 25 s grid (11 keyframes, +0.06%), and a 2.5 s
+grid (<code>-g 60</code>, 36 keyframes, +1.59%). A 29 s grid is between the first two. Keyframes are
+expensive only when you ask for them every second or two; one every 29 s is nearly free.</p>
+
+<p>Two things worth stating as limits rather than results. If your source is <em>already</em> encoded and
+you cannot re-encode it, this recipe does not apply — that is the case the margin table above solves, and
+on a coarse grid the only safe answer is <code>-segment_time</code> at or below one grid interval less
+than your cap, which for a 10.4 s grid means 20. And if the source has scene-cut keyframes on an
+irregular grid, <code>ceil()</code> is the wrong model and you have to measure the files you wrote, which
+is the <code>ffprobe</code> loop in section 4 above.</p>
 <h2>Results at 100% crop</h2>
 <figure>
   <img src="img/med_1344197c4c054894.jpg" alt="Social Denoise mode result: messaging app compression grid removed before enlargement" width="800" loading="lazy">
