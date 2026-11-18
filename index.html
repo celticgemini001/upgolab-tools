@@ -214,6 +214,18 @@ That single fact reframes most upscaling decisions.</p>
   <span class="metric">seam ratio 1.26× at every scale · deblock after wins · jpeg = 8.8% of error at 4×</span>
 </a>
 
+<a class="card" href="/upgolab-upscale-text-readability/">
+  <h3>Can Upscaling Make Text Readable?</h3>
+  <p>A 36-glyph template matcher over 120 characters, swept from a 5 px to a 16 px source font.
+  <strong>90% character accuracy needs a 7 px x-height in the source</strong> — about 9.5 pt at
+  96 dpi. Upscaling <strong>x4 never beat reading the same pixels at their native size</strong>:
+  -8.7 points on average, -18.6 below the 7 px line. Kernel choice inverts with factor, with
+  nearest beating lanczos by <strong>17 points</strong> at x4 because a smooth kernel closes the
+  counters on a five-pixel glyph. The one real win is recompression damage: on a q30 JPEG at a
+  7 px x-height, upscaling recovers <strong>15.8 points</strong>.</p>
+  <span class="metric">7 px x-height threshold · -8.7 native vs x4 · +15.8 on q30 JPEG</span>
+</a>
+
 <a class="card" href="/upgolab-upscale-vs-reshoot/">
   <h3>Re-Shoot or Upscale? The Break-Even Point, Measured</h3>
   <p>A real 1080×1620 capture downscaled and put back: a 4× upscale is <strong>27.2 dB</strong>
