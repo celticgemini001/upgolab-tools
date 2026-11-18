@@ -357,9 +357,10 @@ convenient grid, and it is not the one you get from a phone, a screen recorder, 
 keyframe every <strong>10.427 s</strong>. I ran the page's own margin table against a source shaped like
 that, and the advice inverts.</p>
 
-<p>Test source: 90.007 s, 1920-wide test pattern downscaled and encoded once with
-<code>libx264 -crf 20 -g 250</code> — 2,158 frames, nine keyframes at 0 / 10.427 / 20.854 / 31.281 /
-41.708 / 52.135 / 62.563 / 72.990 / 83.417 s. The 30 s cap is a hard constraint, so the question is
+<p>Test source: 90.007 s at 640×360, encoded once with <code>libx264 -crf 20 -g 250</code> —
+2,158 frames at 23.976 fps, nine keyframes at 0 / 10.427 / 20.854 / 31.281 / 41.708 / 52.135 /
+62.563 / 72.990 / 83.417 s. The dimensions do not affect any number below, because every measurement
+is on timestamps and frame counts, not pixels. The 30 s cap is a hard constraint, so the question is
 which <code>-segment_time</code> clears it.</p>
 
 <h3>1 — The margin rule inverts</h3>
