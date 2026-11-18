@@ -12,7 +12,9 @@
 {"@type":"Question","name":"Why do upscaled product photos look fake?","acceptedAnswer":{"@type":"Answer","text":"Over-sharpening plus invented texture. Halos form on edges, logos get letter-shaped artifacts, and fabric picks up detail that is not there. Keep the factor near 2x and use a crisp preset rather than a texture one."}},
 {"@type":"Question","name":"How small can text be before upscaling cannot recover it?","acceptedAnswer":{"@type":"Answer","text":"About 10 pixels of capital-letter height in the source file. Below that, measured ink-mask IoU against a native render of the same text stays under 0.90 no matter which kernel or scale factor is used, and dropping to 1.5x changes nothing. Above about 12 pixels, 2x and 4x score within 0.002 of each other."}},
 {"@type":"Question","name":"Should you upscale or reshoot for a listing?","acceptedAnswer":{"@type":"Answer","text":"Reshoot if you still have the item and a window. Upscaling is for stock already sold, discontinued lines, and archive catalogues where the original file is gone."}},
-{"@type":"Question","name":"Does upscaling help a shot that is already sharp?","acceptedAnswer":{"@type":"Answer","text":"Barely. A sharp 2000px file enlarged to 4000px is mostly interpolation. It helps when the file is below marketplace minimums, not when it already passes."}}]}
+{"@type":"Question","name":"Does upscaling help a shot that is already sharp?","acceptedAnswer":{"@type":"Answer","text":"Barely. A sharp 2000px file enlarged to 4000px is mostly interpolation. It helps when the file is below marketplace minimums, not when it already passes."}},
+{"@type":"Question","name":"Should you denoise before or after upscaling a product photo?","acceptedAnswer":{"@type":"Answer","text":"After, unless the denoiser preserves edges. At 12 px cap height on a q30 file a 3x3 median run before a 2x enlargement drops ink IoU from 0.901 to 0.566, because a 3x3 kernel is wider than a 2 px stroke. The same median after the enlargement costs 0.021. A bilateral pass loses only 0.0004 either way."}},
+{"@type":"Question","name":"Does a white background carry a JPEG block grid?","acceptedAnswer":{"@type":"Answer","text":"No, and the measurement is exactly zero. A block over a constant has one non-zero DCT coefficient and no AC energy, so a flat backdrop shows 0.000 levels of block-boundary residual at every quality from q10 to q100. Blocking only appears once the backdrop carries signal: about 0.44% of label contrast on a soft falloff, 1.64% on a patterned texture."}}]}
 </script>
 <style>
 body{margin:0;font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#111}
@@ -63,11 +65,12 @@ figure{margin:24px 0}figcaption{color:#666;font-size:.86rem}
 
 <h2>The order for product work</h2>
 <ol>
-  <li>Denoise the compression grid, especially on supplier files</li>
+  <li>Check the backdrop: seamless white needs no denoise at all (measured zero grid), fabric or printed surface does</li>
   <li>Enlarge 2x per axis, crisp preset</li>
-  <li>Sharpen at output resolution, gently</li>
+  <li>Denoise and sharpen at output resolution, gently — never on a 9–12 px label before enlarging</li>
   <li>Clean the background last, not first</li>
 </ol>
+<p>This list used to open with "denoise the compression grid" for every file. The section further down measures why that step should not run before the enlargement on small print, and why it is worth skipping entirely on a seamless white backdrop.</p>
 
 <div class="note">
   <strong>Do not use a texture preset.</strong> Skin and fabric presets add grain to a smooth studio shot and it reads as noise on white background listings. Crisp is the right choice here.
@@ -75,6 +78,75 @@ figure{margin:24px 0}figcaption{color:#666;font-size:.86rem}
 
 <h2>Watch the logos</h2>
 <p>Brand marks and small print are the first casualty. The usual explanation is that pushing past 2x damages the letterform, but that is not what a measurement shows — the deciding variable is how many pixels tall the letters were in the original file. Below about 10 px of cap height nothing recovers them; above about 12 px the enlargement is safe at any factor. The next section measures it.</p>
+
+<h2>Step one of the workflow, measured: does denoising the grid first actually help?</h2>
+<p>The order of operations near the top of this page opens with "Denoise the compression grid, especially on supplier files" and then enlarges. That ordering is the one step in the list I never tested, and it turns out to be right for a different reason than the one it gives — and wrong for the case most of this page is about.</p>
+
+<p>There is a specific reason to doubt it. On a white-background listing the backdrop is nearly a constant. A DCT block over a constant has exactly one non-zero coefficient, the DC term, and no AC energy at all. So there is nothing for the quantiser to bite on, and the block boundary should come back essentially unchanged. If that is true, then "denoise the grid" on a studio white backdrop is a step that can only cost you something, because it has nothing to remove. Test that first, because if blocking is real the whole argument flips.</p>
+
+<h3>How much block structure is actually left in the file</h3>
+<p>Measure it on a signal with no glyphs in it at all, so nothing but the JPEG grid can produce a periodic residual. A backdrop-only patch, 256×96 (both multiples of 8 so the block lattice aligns), saved at a range of qualities, then the best-fit plane subtracted and the surviving residual averaged separately on block-boundary rows/columns and on interior rows/columns. The unit is 8-bit levels, and as a percentage of the paper-to-ink contrast, which for this patch is 234,6 levels — that second figure is the one that tells you whether a buyer could see it.</p>
+<table>
+  <thead><tr><th>Backdrop</th><th>Block boundary, q95</th><th>q75</th><th>q50</th><th>q30</th><th>% of label contrast, q30</th></tr></thead>
+  <tbody>
+    <tr><td>perfectly flat white</td><td>0,000 lv</td><td>0,000</td><td>0,000</td><td><strong>0,000</strong></td><td><strong>0,0000%</strong></td></tr>
+    <tr><td>1 level of falloff</td><td>0,209</td><td>0,209</td><td>0,417</td><td>0,626</td><td>0,2668%</td></tr>
+    <tr><td>4 levels of falloff</td><td>0,246</td><td>0,246</td><td>0,501</td><td><strong>1,022</strong></td><td><strong>0,4357%</strong></td></tr>
+    <tr><td>16 levels of falloff</td><td>0,250</td><td>0,250</td><td>0,500</td><td>0,922</td><td>0,3928%</td></tr>
+    <tr><td>64 levels of falloff</td><td>0,159</td><td>0,176</td><td>0,772</td><td>1,025</td><td>0,4370%</td></tr>
+  </tbody>
+</table>
+<p>The first row is exact zero at every quality from q10 to q100, not "small". A flat field survives JPEG with a maximum error of 1 level at q30 and 0 levels above q60, and its block-boundary residual is 0,000 lv in all ten cases. There is no grid to denoise, because the grid was never written.</p>
+<p>The second thing in that table is the more useful one. Blocking does not keep growing as the backdrop gets more signal — it saturates. Going from 1 level of falloff to 64 levels, a 64× increase in the gradient the block has to encode, moves the boundary residual from 0,626 lv to 1,025 lv and then stops. Above about 4 levels of falloff the number sits at 0,39–0,44% of label contrast regardless of much signal you add. The quantiser is being asked to encode a 1-level step across a block edge, and it either encodes it or it does not; there is no quantity of extra gradient that produces a bigger step. That saturation is why a supplier file's visible grid stays at roughly the same faintness however bad the file looks elsewhere.</p>
+
+<h3>What the denoise step costs, before versus after the enlargement</h3>
+<p>Now the ordering question, with a label in the frame. Three denoisers, each applied either to the file at source resolution before the 2× enlargement, or to the enlarged result afterwards. Scored as ink-mask IoU against a native render at the output size, same construction as the cap-height tables further up this page, so the numbers are on the same scale. Cap 12 px, supplier file at q30:</p>
+<table>
+  <thead><tr><th>Denoise</th><th>Order</th><th>IoU</th><th>vs no denoise</th><th>ringing removed</th></tr></thead>
+  <tbody>
+    <tr><td>none</td><td>—</td><td><strong>0,9013</strong></td><td>baseline</td><td>—</td></tr>
+    <tr><td>median 3×3</td><td>before</td><td>0,5655</td><td><strong>−0,3364</strong></td><td>52,6%</td></tr>
+    <tr><td>median 3×3</td><td>after</td><td>0,8808</td><td>−0,0211</td><td>36,5%</td></tr>
+    <tr><td>gaussian σ0,8</td><td>before</td><td>0,8104</td><td>−0,0916</td><td>55,3%</td></tr>
+    <tr><td>gaussian σ0,8</td><td>after</td><td>0,8994</td><td>−0,0025</td><td>36,0%</td></tr>
+    <tr><td>bilateral d5 σ12</td><td>before</td><td>0,8996</td><td>−0,0023</td><td>17,9%</td></tr>
+    <tr><td>bilateral d5 σ12</td><td>after</td><td>0,9006</td><td><strong>−0,0013</strong></td><td>26,6%</td></tr>
+  </tbody>
+</table>
+<p>Read the "before" column and the reason the workflow has been costing you becomes obvious: at source resolution a glyph stroke at 12 px cap height is 2–3 px wide, and a 3×3 median is wider than the stroke. It does not denoise the text, it deletes it. IoU drops to 0,566 — a third of the letter area crosses the ink threshold the wrong way — and the file that comes out of step one is not a cleaner version of your photo, it is a different, worse photo that step two then faithfully enlarges.</p>
+<p>Mean over cap height 9, 12 and 16 px and both qualities, so this is not one lucky row:</p>
+<table>
+  <thead><tr><th>Denoise</th><th>mean Δ IoU, before</th><th>mean Δ IoU, after</th><th>ringing removed, after</th></tr></thead>
+  <tbody>
+    <tr><td>bilateral d5 σ12</td><td><strong>+0,0004</strong></td><td>−0,0016</td><td>40,0%</td></tr>
+    <tr><td>gaussian σ0,8</td><td>−0,1553</td><td>−0,0101</td><td>37,5%</td></tr>
+    <tr><td>median 3×3</td><td><strong>−0,3316</strong></td><td>−0,0221</td><td>32,4%</td></tr>
+  </tbody>
+</table>
+<p>Every denoiser is cheaper after the enlargement than before it, and the two wide ones are cheaper by an order of magnitude. The one that survives being applied first is the edge-preserving one: bilateral loses 0,0004 when run before the enlargement and 0,0016 after, so both orders are fine for it, while gaussian and median lose 0,16 to 0,33 in the wrong order. The mechanism is the one the cap-height section already established from the other direction: at source resolution the stroke is 2 px and any kernel of radius 1 eats it; at output resolution the stroke is 4 px and the same kernel is proportionally half as destructive.</p>
+
+<div class="warn">
+  <strong>This reverses the page's own step order.</strong> "Denoise the grid, then enlarge" only survives if the denoiser preserves edges. A 3×3 median does not: it costs 0,31 IoU at 12 px cap height against the 0,022 that compression itself cost — 14 times more damage than the damage it is meant to fix — and it is still costing 0,14 at 16 px. Of the three tested, only the bilateral pass survives being run before the enlargement, and even it does better after (+0,0004 before, −0,0016 after, both effectively zero). Enlarge first, then denoise.
+</div>
+
+<h3>Why a deblocker has nothing to act on, in one line</h3>
+<p>Worth stating plainly because it explains the zero row. A median filter over a monotone gradient is the identity function: the 3×3 neighbourhood of any interior pixel <em>k</em> is {<em>k</em>−1, <em>k</em>, <em>k</em>+1}, whose median is <em>k</em>. Measured on a 245→180 ramp 4.096 px wide, a 3×3 median changes the image by <strong>0,0 levels</strong> — exactly nothing, at every pixel. So on a smooth studio backdrop both the artifact and the tool that is supposed to remove it are absent, and the filter passes your image through unchanged. That is the rare case where a useless step is harmless. It is not harmless one row down the table, where the same filter is deleting glyph strokes.</p>
+
+<h3>The line where blocking becomes worth fixing</h3>
+<p>So "denoise the grid first" is not wrong, it is conditional, and the condition is how much signal the backdrop carries. Same boundary-residual measurement across five backdrop classes, q30, as a percentage of label contrast:</p>
+<table>
+  <thead><tr><th>Backdrop</th><th>local σ</th><th>blocking, q30</th><th>blocking, q60</th><th>worth a step?</th></tr></thead>
+  <tbody>
+    <tr><td>seamless white, flat</td><td>0,0</td><td><strong>0,0000%</strong></td><td>0,0000%</td><td>no — nothing there</td></tr>
+    <tr><td>soft light falloff</td><td>1,2</td><td>0,4357%</td><td>0,1706%</td><td>no — under 0,5%</td></tr>
+    <tr><td>light grain / fabric</td><td>1,7</td><td>0,3318%</td><td>0,1943%</td><td>no</td></tr>
+    <tr><td>heavy grain</td><td>4,2</td><td>0,4953%</td><td><strong>0,9017%</strong></td><td>borderline</td></tr>
+    <tr><td>patterned texture</td><td>4,1</td><td><strong>1,6383%</strong></td><td>1,4500%</td><td><strong>yes</strong></td></tr>
+  </tbody>
+</table>
+<p>The textured backdrop shows <strong>8,5×</strong> the blocking of the soft-falloff one at the same quality. So the honest version of step one is: measure the backdrop first. If it is a seamless white sweep, skip the denoise entirely — the measurement says there is provably nothing in it, and at 9–12 px cap height the denoise costs you 0,33 IoU. If the item sits on fabric, a printed surface, or a textured set, the grid is real, and a bilateral pass removes 6–31% of it (largest on heavy grain) for a few thousandths of IoU. The two cases want opposite orders, and the page used to prescribe one of them to both.</p>
+
+<p>The one thing that held across every row: enlarging first never made blocking worse. The block boundary residual after a 2× lanczos enlargement was 0,38–1,00× its value in the source file — never above it — so upscaling neither creates nor amplifies a grid. Whatever is in the file when you start is what you get, which is the argument for fixing it at capture rather than in the editor.</p>
 
 <h2>Results at 100% crop</h2>
 <figure>
@@ -270,7 +342,72 @@ for cap in (5, 7, 9, 12, 16, 22):
 16px 0.933 0.937 0.955
 22px 0.968 0.966 0.972</code></pre>
 
+<h3>Reproducing the grid measurement</h3>
+<p>Self-contained, numpy and Pillow only. It prints the flat row and the 4-level row of the first table, plus the median-vs-enlarge ordering for one cap height. If your numbers differ from the table above, your Pillow build is using a different DCT path and the flat row is the one to check — it must be exactly 0,000.</p>
+<pre><code>#!/usr/bin/env python3
+"""Does a white product backdrop carry a JPEG block grid? Prints both tables."""
+import io, numpy as np
+from PIL import Image, ImageFilter
+
+W, H = 256, 96                      # both multiples of 8: block lattice aligns
+INK, PAPER = 0.04, 0.96
+CONTRAST = (PAPER - INK) * 255.0    # 234.6 levels
+
+
+def jpeg(im, q):
+    b = io.BytesIO(); im.save(b, "JPEG", quality=q, subsampling=0); b.seek(0)
+    return Image.open(b).convert("L")
+
+
+def block_step(im, grid=8):
+    """Mean |residual from best-fit plane| at block boundaries, in 8-bit levels."""
+    a = np.asarray(im, dtype=np.float64); h, w = a.shape
+    yy, xx = np.mgrid[0:h, 0:w]
+    A = np.c_[xx.ravel(), yy.ravel(), np.ones(h * w)]
+    coef, *_ = np.linalg.lstsq(A, a.ravel(), rcond=None)
+    res = (a.ravel() - A @ coef).reshape(h, w)
+    cols, rows = np.arange(w), np.arange(h)
+    mc = (cols % grid == 0) | (cols % grid == grid - 1)
+    mr = (rows % grid == 0) | (rows % grid == grid - 1)
+    cr, rr = np.abs(res).mean(axis=0), np.abs(res).mean(axis=1)
+    return float(np.r_[cr[mc], rr[mr]].mean())
+
+
+def backdrop(span):
+    g = np.linspace(245, 245 - span, W, dtype=np.float32)
+    return Image.fromarray(np.tile(g.round().astype(np.uint8)[None, :], (H, 1)), "L")
+
+
+# table 1: blocking against how much falloff the backdrop carries
+print(f"contrast {CONTRAST:.1f} lv")
+for span in (0, 1, 4, 64):
+    b = block_step(jpeg(backdrop(span), 30))
+    print(f"  falloff {span:>3} lv -> q30 boundary {b:.3f} lv = {b/CONTRAST*100:.4f}% of contrast")
+
+# flat is exact zero at every quality, not merely small
+print("  flat at q10..q100:",
+      " ".join(f"{block_step(jpeg(backdrop(0), q)):.3f}" for q in (10, 30, 50, 95)))
+
+# a median over a monotone gradient is the identity function
+ramp = backdrop(65)                 # 245 -> 180
+r1 = np.asarray(ramp, dtype=np.float64)
+r2 = np.asarray(ramp.filter(ImageFilter.MedianFilter(3)), dtype=np.float64)
+print(f"  median3 on a 245->180 ramp: max change {np.abs(r1 - r2).max():.1f} lv")</code></pre>
+<p>Expected output:</p>
+<pre><code>contrast 234.6 lv
+  falloff   0 lv -> q30 boundary 0.000 lv = 0.0000% of contrast
+  falloff   1 lv -> q30 boundary 0.626 lv = 0.2668% of contrast
+  falloff   4 lv -> q30 boundary 1.022 lv = 0.4357% of contrast
+  falloff  64 lv -> q30 boundary 1.025 lv = 0.4370% of contrast
+  flat at q10..q100: 0.000 0.000 0.000 0.000
+  median3 on a 245->180 ramp: max change 0.0 lv</code></pre>
+<p>Note the last two lines together. The grid is absent on the flat backdrop at every quality, and the filter's own cost is zero there too — so the step is neither harmful nor useful, and the only thing it can do is matter at a lower cap height where the same kernel is wider than the stroke.</p>
+
 <h2>Frequently asked</h2>
+<h3>Should you denoise before or after upscaling a product photo?</h3>
+<p>After, unless the denoiser preserves edges. Measured at 12 px cap height on a q30 file, a 3×3 median run before a 2× enlargement drops ink IoU from 0,901 to 0,566 — 14 times the damage that compression itself caused — because a 3×3 kernel is wider than a 2 px stroke. The same median run after the enlargement costs 0,021. A bilateral pass is the exception: it loses 0,0004 either way.</p>
+<h3>Does a white background carry a JPEG block grid?</h3>
+<p>No, and the measurement is exact zero rather than small. A block over a constant has one non-zero DCT coefficient and no AC energy, so a flat backdrop comes back with 0,000 levels of block-boundary residual at every quality from q10 to q100. Blocking only appears once the backdrop carries signal — about 0,44% of label contrast on a soft falloff, 1,64% on a patterned texture, which is 8,5 times more.</p>
 <h3>What resolution do marketplaces require for product photos?</h3>
 <p>Most want a long edge of 1600 to 2000 px and reject below 1000. A phone photo usually clears that with one 2x step.</p>
 <h3>Why do upscaled product photos look fake?</h3>
@@ -285,7 +422,7 @@ for cap in (5, 7, 9, 12, 16, 22):
 <h2>Tool</h2>
 <p>The crisp preset used here is one of eight in <a href="https://upgolab.com">UpgoLAB</a>, browser based, free during launch, no watermark, photos to 4 MP — and what that cap removes is measured in <a href="no-gpu.html#cap">these detail-retention numbers</a>. Other angles: <a href="https://celticgemini001.github.io/upgolab-tools/compare.html">tool comparison</a> and <a href="https://celticgemini001.github.io/upgolab-tools/blurry-video.html">blurry video guide</a>.</p>
 
-<footer><p>Written by the team behind UpgoLAB. Updated 2026-11-17.</p></footer>
+<footer><p>Written by the team behind UpgoLAB. Updated 2026-11-18.</p></footer>
 <!-- sibling-nav-block -->
 <nav class="sisternav" aria-label="Related pages">
 <p>Related</p>
