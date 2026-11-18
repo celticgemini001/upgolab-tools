@@ -188,11 +188,13 @@ over a range of +0.005 to +0.051 dB, and in 11 of 12 runs the two orders are wit
 each other. That is below the run-to-run variation. Anyone claiming a meaningful ordering effect
 here is measuring noise.</p>
 
-<p>The cost is not symmetric though: bilateral at 540&times;810 costs one pass over a quarter of the
-pixels; at 1080&times;1620 it costs a pass over all of them. My naive NumPy implementation took
-1.53 s per image versus 0.15 s before the resize, which is a property of the implementation
-(Python-level windowing), not the algorithm &mdash; a compiled bilateral is ~30 ms at either size. If
-you are filtering thousands of frames, filter small.</p>
+<p>The cost is not symmetric though: bilateral at 540&times;810 touches a quarter of the pixels that
+1080&times;1620 does. My NumPy implementation (full 5&times;5 window materialised, no separable
+approximation) took <b>1.59 s</b> per image at 540&times;810 and <b>6.21 s</b> at 1080&times;1620 &mdash; a 3.9&times;
+difference for a 4&times; difference in pixel count. So if you are filtering a video, filter before the
+resize: same quality (0.023 dB apart, measured above), roughly a quarter of the work. That timing
+is a property of this implementation, not the algorithm; a compiled or separable bilateral is far
+faster, but the ratio holds for any implementation.</p>
 
 <h3>The number the advice is missing: the source's compression quality</h3>
 
